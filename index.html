@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="記帳">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#f4f6f9; --card:#ffffff; --ink:#1f2933; --muted:#7b8794;
@@ -29,11 +30,10 @@
     border-radius:10px;padding:6px 10px;box-shadow:var(--shadow)}
   .month-pick label{font-size:13px;color:var(--muted)}
   input,select,button{font-family:inherit;font-size:14px}
-  input[type=month],input[type=date],input[type=number],input[type=text],select{
+  input[type=month],input[type=date],input[type=number],input[type=text],input[type=email],input[type=password],select{
     border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink);width:100%}
   input:focus,select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
 
-  /* summary cards */
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
   .card .k{font-size:13px;color:var(--muted);margin-bottom:6px}
@@ -53,10 +53,10 @@
   .seg button.on-expense{background:var(--expense-soft);border-color:var(--expense);color:var(--expense)}
   .btn-primary{width:100%;background:var(--brand);color:#fff;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;margin-top:4px}
   .btn-primary:hover{filter:brightness(1.05)}
+  .btn-primary:disabled{opacity:.6;cursor:default}
   .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--ink);font-size:13px}
   .btn-ghost:hover{background:var(--bg)}
 
-  /* chart */
   .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px}
   .bar-row .lbl{width:78px;color:var(--muted);flex:none;text-align:right}
   .bar-track{flex:1;background:var(--bg);border-radius:6px;height:20px;overflow:hidden}
@@ -65,7 +65,6 @@
   .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:12px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
-  /* table */
   table{width:100%;border-collapse:collapse;font-size:13.5px}
   th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
   th{font-size:12px;color:var(--muted);font-weight:600}
@@ -78,20 +77,49 @@
   .empty{text-align:center;color:var(--muted);padding:26px 0;font-size:14px}
   .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap}
   .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+  .userbox{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .synced{font-size:11px;color:var(--income);background:var(--income-soft);padding:2px 8px;border-radius:20px}
+
+  /* 登入畫面 */
+  .login-wrap{max-width:380px;margin:8vh auto 0;padding:0 20px}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:var(--shadow);text-align:center}
+  .login-card .logo{width:64px;height:64px;border-radius:16px;margin:0 auto 14px;display:block}
+  .login-card h1{font-size:20px;margin:0 0 4px}
+  .login-card p.hint{font-size:13px;color:var(--muted);margin:0 0 20px}
+  .login-card .field{text-align:left;margin-bottom:12px}
+  .login-err{color:var(--expense);font-size:13px;min-height:18px;margin:4px 0 8px}
   @media(max-width:720px){.cards{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- 登入畫面 -->
+<div id="loginScreen" class="login-wrap" style="display:none">
+  <div class="login-card">
+    <img class="logo" src="icons/icon-192.png" alt="">
+    <h1>公司財務記帳</h1>
+    <p class="hint">請登入以查看共用帳目</p>
+    <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username"></div>
+    <div class="field"><label>密碼</label><input type="password" id="loginPassword" placeholder="密碼" autocomplete="current-password"></div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">登入</button>
+    <p class="hint" style="margin-top:16px">帳號由管理者建立。忘記密碼或需要帳號，請聯絡管理者。</p>
+  </div>
+</div>
+
+<!-- App 主畫面 -->
+<div id="appScreen" class="wrap" style="display:none">
   <header class="top">
-    <h1>公司財務記帳<span class="sub">Matt 的一人公司 · 資料只存在你這台電腦</span></h1>
-    <div class="month-pick">
-      <label for="month">檢視月份</label>
-      <input type="month" id="month">
+    <h1>公司財務記帳<span class="sub" id="companySub">雲端共用 · 大家看到同一份</span></h1>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="userbox"><span class="synced">☁ 已同步</span><span id="userEmail"></span><button class="btn-ghost" onclick="doLogout()">登出</button></div>
+      <div class="month-pick">
+        <label for="month">檢視月份</label>
+        <input type="month" id="month">
+      </div>
     </div>
   </header>
 
-  <!-- 摘要卡 -->
   <div class="cards">
     <div class="card income"><div class="k">本月收入</div><div class="v" id="sumIncome">$0</div></div>
     <div class="card expense"><div class="k">本月支出</div><div class="v" id="sumExpense">$0</div></div>
@@ -99,7 +127,6 @@
   </div>
 
   <div class="grid2">
-    <!-- 記一筆 -->
     <div class="panel">
       <h2>記一筆</h2>
       <div class="seg">
@@ -114,27 +141,24 @@
         <div class="field"><label>日期</label><input type="date" id="date"></div>
         <div class="field"><label>項目 / 備註</label><input type="text" id="note" placeholder="例：鴨翅40斤、黑貓運費"></div>
       </div>
-      <button class="btn-primary" onclick="addTx()">＋ 新增這一筆</button>
+      <button class="btn-primary" id="addBtn" onclick="addTx()">＋ 新增這一筆</button>
     </div>
 
-    <!-- 分類圖表 -->
     <div class="panel">
       <h2>本月收支結構</h2>
       <div class="legend">
         <span><span class="dot" style="background:var(--income)"></span>收入分類</span>
         <span><span class="dot" style="background:var(--expense)"></span>支出分類</span>
       </div>
-      <div id="chart"><div class="empty">這個月還沒有紀錄</div></div>
+      <div id="chart"><div class="empty">載入中…</div></div>
     </div>
   </div>
 
-  <!-- 訂單 / 營收匯總 -->
   <div class="panel">
     <h2>訂單 / 營收匯總（本月收入來源）</h2>
-    <div id="revenue"><div class="empty">這個月還沒有收入紀錄</div></div>
+    <div id="revenue"><div class="empty">—</div></div>
   </div>
 
-  <!-- 明細 -->
   <div class="panel">
     <div class="toolbar">
       <h2 style="margin:0">本月明細</h2>
@@ -152,10 +176,15 @@
     <div id="txEmpty" class="empty" style="display:none">這個月還沒有任何紀錄，從左上角「記一筆」開始吧！</div>
   </div>
 
-  <div class="foot">資料自動儲存在此瀏覽器（localStorage）。第二階段會把它搬上網路，讓夥伴 / 會計也能連。</div>
+  <div class="foot">資料儲存在雲端（Supabase）。所有登入的人看到同一份，即時共用。</div>
 </div>
 
 <script>
+  // ===== Supabase 設定 =====
+  const SUPABASE_URL = 'https://klswfpxrgzakcaynwqsg.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmcHhyZ3pha2NheW53cXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzA1NTAsImV4cCI6MjA5ODQ0NjU1MH0.mvwxRTqPSETCWHD_d3FVola3vb5WndvPohbuAomTwTk';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
   const CATS = {
     income:{
       '銷售收入':['批發訂單','門市 / 現金'],
@@ -169,13 +198,50 @@
       '其他':['生活日用品','雜貨','餐飲','公益 / 祥事','其他支出']
     }
   };
-  const KEY = 'finance-app-tx-v1';
-  let txType = 'income';
 
-  const load = () => { try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]} };
-  const save = (d) => localStorage.setItem(KEY, JSON.stringify(d));
+  let TX = [];         // 目前記憶體中的所有交易（來自雲端）
+  let txType = 'income';
+  let currentUser = null;
+
   const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
-  const uid = () => Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
+  const uid = () => Date.now().toString(36) + Math.floor(Math.random()*1e5).toString(36);
+
+  // ===== 登入 / 登出 =====
+  async function doLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const err = document.getElementById('loginErr');
+    const btn = document.getElementById('loginBtn');
+    err.textContent = '';
+    if(!email || !password){ err.textContent = '請輸入 Email 和密碼'; return; }
+    btn.disabled = true; btn.textContent = '登入中…';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = '登入';
+    if(error){ err.textContent = '登入失敗：' + (error.message==='Invalid login credentials' ? '帳號或密碼錯誤' : error.message); }
+    // 成功會由 onAuthStateChange 接手
+  }
+  async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+
+  function showLogin(){
+    document.getElementById('appScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='block';
+  }
+  function showApp(user){
+    currentUser = user;
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('appScreen').style.display='block';
+    document.getElementById('userEmail').textContent = user.email;
+  }
+
+  // ===== 資料存取（雲端）=====
+  async function fetchAll(){
+    const { data, error } = await sb.from('transactions').select('*').order('date',{ascending:false});
+    if(error){ console.error(error); return; }
+    TX = (data||[]).map(r=>({id:r.id,type:r.type,category:r.category,amount:Number(r.amount),date:r.date,note:r.note||''}));
+    render();
+  }
+
+  function currentMonth(){ return document.getElementById('month').value; }
 
   function setType(t){
     txType = t;
@@ -187,38 +253,35 @@
     ).join('');
   }
 
-  function currentMonth(){ return document.getElementById('month').value; }
-
-  function addTx(){
+  async function addTx(){
     const amount = parseFloat(document.getElementById('amount').value);
     const date = document.getElementById('date').value;
     if(!date){ alert('請選擇日期'); return; }
     if(!amount || amount<=0){ alert('請輸入大於 0 的金額'); return; }
-    const data = load();
-    data.push({
-      id: uid(), type: txType,
-      category: document.getElementById('category').value,
-      amount: amount, date: date,
-      note: document.getElementById('note').value.trim()
-    });
-    save(data);
+    const rec = { id: uid(), type: txType, category: document.getElementById('category').value,
+                  amount: amount, date: date, note: document.getElementById('note').value.trim() };
+    const btn = document.getElementById('addBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+    const { error } = await sb.from('transactions').insert(rec);
+    btn.disabled = false; btn.textContent = '＋ 新增這一筆';
+    if(error){ alert('新增失敗：' + error.message); return; }
     document.getElementById('amount').value='';
     document.getElementById('note').value='';
-    // 若新增的月份跟目前檢視不同，跳到那個月份
     const m = date.slice(0,7);
     if(m !== currentMonth()) document.getElementById('month').value = m;
-    render();
+    await fetchAll();
   }
 
-  function delTx(id){
-    if(!confirm('確定刪除這一筆？')) return;
-    save(load().filter(t=>t.id!==id));
-    render();
+  async function delTx(id){
+    if(!confirm('確定刪除這一筆？（會從雲端一起刪除）')) return;
+    const { error } = await sb.from('transactions').delete().eq('id', id);
+    if(error){ alert('刪除失敗：' + error.message); return; }
+    await fetchAll();
   }
 
   function monthTx(){
     const m = currentMonth();
-    return load().filter(t=>t.date.slice(0,7)===m).sort((a,b)=>b.date.localeCompare(a.date));
+    return TX.filter(t=>t.date && t.date.slice(0,7)===m).sort((a,b)=>b.date.localeCompare(a.date));
   }
 
   function render(){
@@ -233,7 +296,6 @@
     netEl.textContent = (net<0?'-':'') + fmt(Math.abs(net));
     netEl.className = 'v ' + (net<0?'neg':'pos');
 
-    // 明細表
     const body = document.getElementById('txBody');
     const emptyEl = document.getElementById('txEmpty');
     if(list.length===0){ body.innerHTML=''; emptyEl.style.display='block'; }
@@ -249,7 +311,6 @@
           <td style="text-align:right"><button class="del" onclick="delTx('${t.id}')" title="刪除">✕</button></td>
         </tr>`).join('');
     }
-
     renderChart(list, inc, exp);
     renderRevenue(list, inc);
   }
@@ -306,37 +367,33 @@
   }
 
   function backupJSON(){
-    const data = load();
-    if(data.length===0){ alert('目前沒有資料可以備份'); return; }
-    const blob = new Blob([JSON.stringify(data,null,1)], {type:'application/json'});
+    if(TX.length===0){ alert('目前沒有資料可以備份'); return; }
+    const blob = new Blob([JSON.stringify(TX,null,1)], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `財務備份_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
   }
 
-  function importJSON(e){
+  async function importJSON(e){
     const file = e.target.files[0];
-    if(!file) return;
+    if(!file){ return; }
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try{
         const incoming = JSON.parse(reader.result);
         if(!Array.isArray(incoming)) throw new Error('not array');
-        const data = load();
-        const ids = new Set(data.map(t=>t.id));
-        let added=0, skipped=0;
-        incoming.forEach(t=>{
-          if(t && t.id && t.date && t.amount && (t.type==='income'||t.type==='expense')){
-            if(ids.has(t.id)){ skipped++; }
-            else{ data.push(t); ids.add(t.id); added++; }
-          }
-        });
-        save(data);
-        const first = incoming.find(t=>t && t.date);
+        const rows = incoming
+          .filter(t=>t && t.id && t.date && t.amount && (t.type==='income'||t.type==='expense'))
+          .map(t=>({id:String(t.id),type:t.type,category:t.category||'其他支出',amount:Number(t.amount),date:t.date,note:t.note||''}));
+        if(rows.length===0){ alert('檔案裡沒有可匯入的資料'); e.target.value=''; return; }
+        if(!confirm(`要把 ${rows.length} 筆資料匯入雲端嗎？（所有登入的人都會看到）`)){ e.target.value=''; return; }
+        const { error } = await sb.from('transactions').upsert(rows, { onConflict:'id' });
+        if(error){ alert('匯入失敗：' + error.message); e.target.value=''; return; }
+        const first = rows.find(t=>t.date);
         if(first) document.getElementById('month').value = first.date.slice(0,7);
-        render();
-        alert(`匯入完成！新增 ${added} 筆` + (skipped?`，略過 ${skipped} 筆重複`:''));
+        await fetchAll();
+        alert(`匯入完成！共 ${rows.length} 筆已同步到雲端`);
       }catch(err){
         alert('檔案格式不正確，請選擇本 App 匯出的備份 JSON 檔');
       }
@@ -345,22 +402,40 @@
     reader.readAsText(file);
   }
 
-  // 註冊 service worker（讓 App 可離線使用；需在 https 或 localhost 才會生效）
+  // ===== 啟動 =====
+  (function init(){
+    const now = new Date();
+    document.getElementById('month').value = now.toISOString().slice(0,7);
+    document.getElementById('date').value = now.toISOString().slice(0,10);
+    document.getElementById('month').addEventListener('change', render);
+    setType('income');
+
+    // 登入狀態變化
+    sb.auth.onAuthStateChange((event, session)=>{
+      if(session && session.user){
+        showApp(session.user);
+        fetchAll();
+      }else{
+        currentUser = null;
+        showLogin();
+      }
+    });
+    // 初始檢查
+    sb.auth.getSession().then(({data})=>{
+      if(data.session && data.session.user){ showApp(data.session.user); fetchAll(); }
+      else showLogin();
+    });
+    // 回到頁面時重抓，讓大家看到最新
+    window.addEventListener('focus', ()=>{ if(currentUser) fetchAll(); });
+    // 即時更新（若專案有開 realtime 就會生效，沒開也不影響）
+    sb.channel('tx-changes')
+      .on('postgres_changes', {event:'*', schema:'public', table:'transactions'}, ()=>{ if(currentUser) fetchAll(); })
+      .subscribe();
+  })();
+
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
   }
-
-  // 初始化
-  (function init(){
-    const now = new Date();
-    const ym = now.toISOString().slice(0,7);
-    const today = now.toISOString().slice(0,10);
-    document.getElementById('month').value = ym;
-    document.getElementById('date').value = today;
-    document.getElementById('month').addEventListener('change', render);
-    setType('income');
-    render();
-  })();
 </script>
 </body>
 </html>
