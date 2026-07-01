@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>採買快速記帳</title>
+<link rel="manifest" href="quick.webmanifest">
+<meta name="theme-color" content="#12a150">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="採買記帳">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1f2933; --muted:#7b8794;
+    --line:#e4e8ee; --brand:#12a150; --brand-soft:#e6f7ee;
+    --expense:#e5484d;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:560px;margin:0 auto;padding:16px 14px 60px}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  h1{font-size:20px;margin:0;font-weight:800}
+  h1 .sub{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:1px}
+  input,select,button{font-family:inherit}
+  input[type=number],input[type=text],input[type=date],input[type=email],input[type=password],select{
+    border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff;color:var(--ink);width:100%;font-size:16px}
+  input:focus,select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+  .panel h2{font-size:14px;margin:0 0 10px;font-weight:700;color:var(--muted)}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+
+  /* 常買快捷 */
+  .quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .quick-grid button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:14px 4px;font-size:15px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .quick-grid button:active{transform:scale(.96)}
+  .quick-grid button.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+  @media(max-width:420px){.quick-grid{grid-template-columns:repeat(3,1fr)}}
+
+  .btn-primary{width:100%;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:16px;font-weight:800;font-size:18px;cursor:pointer}
+  .btn-primary:active{filter:brightness(.95)}
+  .btn-primary:disabled{opacity:.6}
+  .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--muted);font-size:13px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1f2933;color:#fff;
+    padding:12px 20px;border-radius:24px;font-size:15px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .today-item{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:15px}
+  .today-item .cat{color:var(--muted);font-size:12px}
+  .today-item .amt{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:var(--expense)}
+  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 8px}
+  .del:active{color:var(--expense)}
+  .today-total{display:flex;justify-content:space-between;font-weight:800;font-size:16px;padding-top:10px}
+  .empty{text-align:center;color:var(--muted);padding:16px 0;font-size:14px}
+
+  .login-wrap{max-width:360px;margin:10vh auto 0;padding:0 20px}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;box-shadow:var(--shadow);text-align:center}
+  .login-card img{width:60px;height:60px;border-radius:14px;margin:0 auto 12px;display:block}
+  .login-card h1{font-size:19px;margin:0 0 4px}
+  .login-card p{font-size:13px;color:var(--muted);margin:0 0 18px}
+  .login-err{color:var(--expense);font-size:13px;min-height:18px;margin:2px 0 6px}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-wrap" style="display:none">
+  <div class="login-card">
+    <img src="icons/icon-192.png" alt="">
+    <h1>採買快速記帳</h1>
+    <p>請用公司提供的「採買」帳號登入</p>
+    <div class="field" style="text-align:left"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+    <div class="field" style="text-align:left"><label>密碼</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">登入</button>
+  </div>
+</div>
+
+<div id="appScreen" class="wrap" style="display:none">
+  <header class="top">
+    <h1>採買快速記帳<span class="sub">記完自動同步 · 老闆和會計都看得到</span></h1>
+    <button class="btn-ghost" onclick="doLogout()">登出</button>
+  </header>
+
+  <div class="panel">
+    <h2>① 常買項目（點一下自動帶入）</h2>
+    <div class="quick-grid" id="quickGrid"></div>
+  </div>
+
+  <div class="panel">
+    <h2>② 填金額</h2>
+    <div class="field">
+      <label>分類</label>
+      <select id="category"></select>
+    </div>
+    <div class="field">
+      <label>金額</label>
+      <input type="number" id="amount" inputmode="numeric" placeholder="輸入金額">
+    </div>
+    <div class="field">
+      <label>項目 / 備註（可留空）</label>
+      <input type="text" id="note" placeholder="例：鴨翅40斤">
+    </div>
+    <div class="field">
+      <label>日期</label>
+      <input type="date" id="date">
+    </div>
+    <button class="btn-primary" id="addBtn" onclick="addTx()">✓ 記這一筆</button>
+  </div>
+
+  <div class="panel">
+    <h2>今天記過的</h2>
+    <div id="todayList"><div class="empty">今天還沒記帳</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://klswfpxrgzakcaynwqsg.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmcHhyZ3pha2NheW53cXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzA1NTAsImV4cCI6MjA5ODQ0NjU1MH0.mvwxRTqPSETCWHD_d3FVola3vb5WndvPohbuAomTwTk';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // 支出分類（與完整版一致）
+  const EXPENSE_CATS = {
+    '原料 / 進貨':['鴨肉原料','豬肉原料','雞肉原料','豆製品','辛香料','食材'],
+    '人事費用':['工資 / 人力','勞健保費'],
+    '營運 / 製造費用':['包裝材料','設備 / 維修','水電瓦斯費','房租','運費','交通'],
+    '管理 / 銷售費用':['廣告 / 行銷費','佣金 / 分潤支出','軟體 / 資訊費','專業服務費','保險費'],
+    '其他':['生活日用品','雜貨','餐飲','公益 / 祥事','其他支出']
+  };
+  // 常買快捷（依老闆半年帳最常買的品項）
+  const QUICK = [
+    {label:'鴨翅', cat:'鴨肉原料', amt:4000},
+    {label:'豬腱', cat:'豬肉原料', amt:5200},
+    {label:'三層肉', cat:'豬肉原料'},
+    {label:'耳朵', cat:'豬肉原料'},
+    {label:'大腸', cat:'豬肉原料'},
+    {label:'豆干', cat:'豆製品'},
+    {label:'豆皮', cat:'豆製品'},
+    {label:'豆腐', cat:'豆製品'},
+    {label:'百葉', cat:'豆製品'},
+    {label:'米血', cat:'食材'},
+    {label:'水煮蛋', cat:'食材'},
+    {label:'蝦米', cat:'食材'},
+    {label:'蒜頭', cat:'辛香料'},
+    {label:'紅蔥頭', cat:'辛香料'},
+    {label:'薑母', cat:'辛香料'},
+    {label:'辣椒', cat:'辛香料'},
+    {label:'加油', cat:'交通'},
+    {label:'運費', cat:'運費'},
+    {label:'雞爪工資', cat:'工資 / 人力'},
+    {label:'其他', cat:'其他支出'}
+  ];
+
+  let TX = [];
+  let currentUser = null;
+  const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
+  const uid = () => Date.now().toString(36) + Math.floor(Math.random()*1e5).toString(36);
+  const todayStr = () => new Date().toISOString().slice(0,10);
+
+  async function doLogin(){
+    const email=document.getElementById('loginEmail').value.trim();
+    const password=document.getElementById('loginPassword').value;
+    const err=document.getElementById('loginErr'), btn=document.getElementById('loginBtn');
+    err.textContent='';
+    if(!email||!password){ err.textContent='請輸入帳號和密碼'; return; }
+    btn.disabled=true; btn.textContent='登入中…';
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    btn.disabled=false; btn.textContent='登入';
+    if(error){ err.textContent='登入失敗：'+(error.message==='Invalid login credentials'?'帳號或密碼錯誤':error.message); }
+  }
+  async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+  function showLogin(){ document.getElementById('appScreen').style.display='none'; document.getElementById('loginScreen').style.display='block'; }
+  function showApp(user){ currentUser=user; document.getElementById('loginScreen').style.display='none'; document.getElementById('appScreen').style.display='block'; }
+
+  function buildCategorySelect(){
+    const sel=document.getElementById('category');
+    sel.innerHTML=Object.entries(EXPENSE_CATS).map(([g,items])=>
+      `<optgroup label="${g}">`+items.map(c=>`<option>${c}</option>`).join('')+`</optgroup>`).join('');
+  }
+  function buildQuick(){
+    const g=document.getElementById('quickGrid');
+    g.innerHTML=QUICK.map((q,i)=>`<button type="button" data-i="${i}" onclick="pickQuick(${i})">${q.label}</button>`).join('');
+  }
+  function pickQuick(i){
+    const q=QUICK[i];
+    document.getElementById('category').value=q.cat;
+    document.getElementById('note').value=q.label==='其他'?'':q.label;
+    const amt=document.getElementById('amount');
+    amt.value=q.amt||'';
+    document.querySelectorAll('#quickGrid button').forEach(b=>b.classList.toggle('on', +b.dataset.i===i));
+    amt.focus();
+  }
+
+  async function fetchAll(){
+    const {data,error}=await sb.from('transactions').select('*').order('date',{ascending:false});
+    if(error){ console.error(error); return; }
+    TX=(data||[]).map(r=>({id:r.id,type:r.type,category:r.category,amount:Number(r.amount),date:r.date,note:r.note||''}));
+    renderToday();
+  }
+
+  function showToast(msg){
+    const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1600);
+  }
+
+  async function addTx(){
+    const amount=parseFloat(document.getElementById('amount').value);
+    const date=document.getElementById('date').value;
+    if(!date){ alert('請選日期'); return; }
+    if(!amount||amount<=0){ alert('請輸入金額'); document.getElementById('amount').focus(); return; }
+    const rec={id:uid(),type:'expense',category:document.getElementById('category').value,
+               amount:amount,date:date,note:document.getElementById('note').value.trim()};
+    const btn=document.getElementById('addBtn');
+    btn.disabled=true; btn.textContent='儲存中…';
+    const {error}=await sb.from('transactions').insert(rec);
+    btn.disabled=false; btn.textContent='✓ 記這一筆';
+    if(error){ alert('儲存失敗：'+error.message); return; }
+    document.getElementById('amount').value='';
+    document.getElementById('note').value='';
+    document.querySelectorAll('#quickGrid button').forEach(b=>b.classList.remove('on'));
+    showToast('已記一筆 ✓ '+fmt(amount));
+    await fetchAll();
+  }
+
+  async function delTx(id){
+    if(!confirm('刪掉這一筆？')) return;
+    const {error}=await sb.from('transactions').delete().eq('id',id);
+    if(error){ alert('刪除失敗：'+error.message); return; }
+    await fetchAll();
+  }
+
+  function renderToday(){
+    const el=document.getElementById('todayList');
+    const list=TX.filter(t=>t.date===todayStr()&&t.type==='expense').sort((a,b)=>b.id.localeCompare(a.id));
+    if(list.length===0){ el.innerHTML='<div class="empty">今天還沒記帳</div>'; return; }
+    const total=list.reduce((s,t)=>s+t.amount,0);
+    el.innerHTML=list.map(t=>`
+      <div class="today-item">
+        <div><div>${t.note||t.category}</div><div class="cat">${t.category}</div></div>
+        <span class="amt">-${fmt(t.amount)}</span>
+        <button class="del" onclick="delTx('${t.id}')">✕</button>
+      </div>`).join('')
+      +`<div class="today-total"><span>今日合計</span><span style="color:var(--expense)">-${fmt(total)}</span></div>`;
+  }
+
+  (function init(){
+    document.getElementById('date').value=todayStr();
+    buildCategorySelect(); buildQuick();
+    sb.auth.onAuthStateChange((e,session)=>{
+      if(session&&session.user){ showApp(session.user); fetchAll(); }
+      else{ currentUser=null; showLogin(); }
+    });
+    sb.auth.getSession().then(({data})=>{
+      if(data.session&&data.session.user){ showApp(data.session.user); fetchAll(); } else showLogin();
+    });
+    window.addEventListener('focus',()=>{ if(currentUser) fetchAll(); });
+    sb.channel('quick-changes').on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{ if(currentUser) fetchAll(); }).subscribe();
+  })();
+
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>
