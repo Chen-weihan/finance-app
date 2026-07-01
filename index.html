@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>公司財務記帳</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2f6fed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="記帳">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1f2933; --muted:#7b8794;
+    --line:#e4e8ee; --brand:#2f6fed; --brand-soft:#eaf1ff;
+    --income:#12a150; --income-soft:#e6f7ee;
+    --expense:#e5484d; --expense-soft:#fdecec;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:24px 16px 64px}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+  h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.5px}
+  h1 .sub{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:2px}
+  .month-pick{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:6px 10px;box-shadow:var(--shadow)}
+  .month-pick label{font-size:13px;color:var(--muted)}
+  input,select,button{font-family:inherit;font-size:14px}
+  input[type=month],input[type=date],input[type=number],input[type=text],select{
+    border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink);width:100%}
+  input:focus,select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+
+  /* summary cards */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card .k{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .card .v{font-size:26px;font-weight:700;letter-spacing:.5px}
+  .card.income .v{color:var(--income)} .card.expense .v{color:var(--expense)}
+  .card.net .v.pos{color:var(--income)} .card.net .v.neg{color:var(--expense)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .panel h2{font-size:15px;margin:0 0 14px;font-weight:700}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .row.full{grid-template-columns:1fr}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .seg{display:flex;gap:6px;margin-bottom:10px}
+  .seg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px;cursor:pointer;color:var(--muted);font-weight:600}
+  .seg button.on-income{background:var(--income-soft);border-color:var(--income);color:var(--income)}
+  .seg button.on-expense{background:var(--expense-soft);border-color:var(--expense);color:var(--expense)}
+  .btn-primary{width:100%;background:var(--brand);color:#fff;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;margin-top:4px}
+  .btn-primary:hover{filter:brightness(1.05)}
+  .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--ink);font-size:13px}
+  .btn-ghost:hover{background:var(--bg)}
+
+  /* chart */
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px}
+  .bar-row .lbl{width:78px;color:var(--muted);flex:none;text-align:right}
+  .bar-track{flex:1;background:var(--bg);border-radius:6px;height:20px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;transition:width .3s}
+  .bar-row .amt{width:86px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:12px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--muted)}
+  .tag.i{background:var(--income-soft);color:var(--income)}
+  .tag.e{background:var(--expense-soft);color:var(--expense)}
+  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:6px}
+  .del:hover{background:var(--expense-soft);color:var(--expense)}
+  .empty{text-align:center;color:var(--muted);padding:26px 0;font-size:14px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+  @media(max-width:720px){.cards{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>公司財務記帳<span class="sub">Matt 的一人公司 · 資料只存在你這台電腦</span></h1>
+    <div class="month-pick">
+      <label for="month">檢視月份</label>
+      <input type="month" id="month">
+    </div>
+  </header>
+
+  <!-- 摘要卡 -->
+  <div class="cards">
+    <div class="card income"><div class="k">本月收入</div><div class="v" id="sumIncome">$0</div></div>
+    <div class="card expense"><div class="k">本月支出</div><div class="v" id="sumExpense">$0</div></div>
+    <div class="card net"><div class="k">本月結餘</div><div class="v" id="sumNet">$0</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- 記一筆 -->
+    <div class="panel">
+      <h2>記一筆</h2>
+      <div class="seg">
+        <button type="button" id="segIncome" class="on-income" onclick="setType('income')">收入</button>
+        <button type="button" id="segExpense" onclick="setType('expense')">支出</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>分類</label><select id="category"></select></div>
+        <div class="field"><label>金額</label><input type="number" id="amount" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>日期</label><input type="date" id="date"></div>
+        <div class="field"><label>項目 / 備註</label><input type="text" id="note" placeholder="例：鴨翅40斤、黑貓運費"></div>
+      </div>
+      <button class="btn-primary" onclick="addTx()">＋ 新增這一筆</button>
+    </div>
+
+    <!-- 分類圖表 -->
+    <div class="panel">
+      <h2>本月收支結構</h2>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--income)"></span>收入分類</span>
+        <span><span class="dot" style="background:var(--expense)"></span>支出分類</span>
+      </div>
+      <div id="chart"><div class="empty">這個月還沒有紀錄</div></div>
+    </div>
+  </div>
+
+  <!-- 訂單 / 營收匯總 -->
+  <div class="panel">
+    <h2>訂單 / 營收匯總（本月收入來源）</h2>
+    <div id="revenue"><div class="empty">這個月還沒有收入紀錄</div></div>
+  </div>
+
+  <!-- 明細 -->
+  <div class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0">本月明細</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importJSON(event)">
+        <button class="btn-ghost" onclick="document.getElementById('importFile').click()">⬆ 匯入備份</button>
+        <button class="btn-ghost" onclick="backupJSON()">💾 備份</button>
+        <button class="btn-ghost" onclick="exportCSV()">⬇ 匯出 CSV（給會計）</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>日期</th><th>類型</th><th>分類</th><th>項目</th><th style="text-align:right">金額</th><th></th></tr></thead>
+      <tbody id="txBody"></tbody>
+    </table>
+    <div id="txEmpty" class="empty" style="display:none">這個月還沒有任何紀錄，從左上角「記一筆」開始吧！</div>
+  </div>
+
+  <div class="foot">資料自動儲存在此瀏覽器（localStorage）。第二階段會把它搬上網路，讓夥伴 / 會計也能連。</div>
+</div>
+
+<script>
+  const CATS = {
+    income:{
+      '銷售收入':['批發訂單','門市 / 現金'],
+      '其他':['其他收入']
+    },
+    expense:{
+      '原料 / 進貨':['鴨肉原料','豬肉原料','雞肉原料','豆製品','辛香料','食材'],
+      '人事費用':['工資 / 人力','勞健保費'],
+      '營運 / 製造費用':['包裝材料','設備 / 維修','水電瓦斯費','房租','運費','交通'],
+      '管理 / 銷售費用':['廣告 / 行銷費','佣金 / 分潤支出','軟體 / 資訊費','專業服務費','保險費'],
+      '其他':['生活日用品','雜貨','餐飲','公益 / 祥事','其他支出']
+    }
+  };
+  const KEY = 'finance-app-tx-v1';
+  let txType = 'income';
+
+  const load = () => { try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]} };
+  const save = (d) => localStorage.setItem(KEY, JSON.stringify(d));
+  const fmt = (n) => '$' + Math.round(n).toLocaleString('en-US');
+  const uid = () => Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
+
+  function setType(t){
+    txType = t;
+    document.getElementById('segIncome').className = t==='income'?'on-income':'';
+    document.getElementById('segExpense').className = t==='expense'?'on-expense':'';
+    const sel = document.getElementById('category');
+    sel.innerHTML = Object.entries(CATS[t]).map(([g,items])=>
+      `<optgroup label="${g}">` + items.map(c=>`<option>${c}</option>`).join('') + `</optgroup>`
+    ).join('');
+  }
+
+  function currentMonth(){ return document.getElementById('month').value; }
+
+  function addTx(){
+    const amount = parseFloat(document.getElementById('amount').value);
+    const date = document.getElementById('date').value;
+    if(!date){ alert('請選擇日期'); return; }
+    if(!amount || amount<=0){ alert('請輸入大於 0 的金額'); return; }
+    const data = load();
+    data.push({
+      id: uid(), type: txType,
+      category: document.getElementById('category').value,
+      amount: amount, date: date,
+      note: document.getElementById('note').value.trim()
+    });
+    save(data);
+    document.getElementById('amount').value='';
+    document.getElementById('note').value='';
+    // 若新增的月份跟目前檢視不同，跳到那個月份
+    const m = date.slice(0,7);
+    if(m !== currentMonth()) document.getElementById('month').value = m;
+    render();
+  }
+
+  function delTx(id){
+    if(!confirm('確定刪除這一筆？')) return;
+    save(load().filter(t=>t.id!==id));
+    render();
+  }
+
+  function monthTx(){
+    const m = currentMonth();
+    return load().filter(t=>t.date.slice(0,7)===m).sort((a,b)=>b.date.localeCompare(a.date));
+  }
+
+  function render(){
+    const list = monthTx();
+    const inc = list.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const exp = list.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const net = inc - exp;
+
+    document.getElementById('sumIncome').textContent = fmt(inc);
+    document.getElementById('sumExpense').textContent = fmt(exp);
+    const netEl = document.getElementById('sumNet');
+    netEl.textContent = (net<0?'-':'') + fmt(Math.abs(net));
+    netEl.className = 'v ' + (net<0?'neg':'pos');
+
+    // 明細表
+    const body = document.getElementById('txBody');
+    const emptyEl = document.getElementById('txEmpty');
+    if(list.length===0){ body.innerHTML=''; emptyEl.style.display='block'; }
+    else{
+      emptyEl.style.display='none';
+      body.innerHTML = list.map(t=>`
+        <tr>
+          <td>${t.date.slice(5)}</td>
+          <td><span class="tag ${t.type==='income'?'i':'e'}">${t.type==='income'?'收入':'支出'}</span></td>
+          <td>${t.category}</td>
+          <td>${t.note||'—'}</td>
+          <td class="num" style="color:${t.type==='income'?'var(--income)':'var(--expense)'}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</td>
+          <td style="text-align:right"><button class="del" onclick="delTx('${t.id}')" title="刪除">✕</button></td>
+        </tr>`).join('');
+    }
+
+    renderChart(list, inc, exp);
+    renderRevenue(list, inc);
+  }
+
+  function groupBy(list, type){
+    const map = {};
+    list.filter(t=>t.type===type).forEach(t=>{ map[t.category]=(map[t.category]||0)+t.amount; });
+    return Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  }
+
+  function renderChart(list, inc, exp){
+    const el = document.getElementById('chart');
+    if(list.length===0){ el.innerHTML='<div class="empty">這個月還沒有紀錄</div>'; return; }
+    const max = Math.max(inc, exp, 1);
+    const rowsInc = groupBy(list,'income');
+    const rowsExp = groupBy(list,'expense');
+    const bar = (label, amount, color) => `
+      <div class="bar-row">
+        <span class="lbl">${label}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.max(2,amount/max*100)}%;background:${color}"></span></span>
+        <span class="amt">${fmt(amount)}</span>
+      </div>`;
+    let html = '';
+    if(rowsInc.length) html += rowsInc.map(([c,a])=>bar(c,a,'var(--income)')).join('');
+    if(rowsExp.length) html += rowsExp.map(([c,a])=>bar(c,a,'var(--expense)')).join('');
+    el.innerHTML = html;
+  }
+
+  function renderRevenue(list, inc){
+    const el = document.getElementById('revenue');
+    const rows = groupBy(list,'income');
+    if(rows.length===0){ el.innerHTML='<div class="empty">這個月還沒有收入紀錄</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>收入來源</th><th style="text-align:right">筆數</th><th style="text-align:right">金額</th><th style="text-align:right">佔比</th></tr></thead><tbody>` +
+      rows.map(([c,a])=>{
+        const count = list.filter(t=>t.type==='income'&&t.category===c).length;
+        const pct = inc? Math.round(a/inc*100):0;
+        return `<tr><td>${c}</td><td class="num">${count}</td><td class="num" style="color:var(--income)">${fmt(a)}</td><td class="num">${pct}%</td></tr>`;
+      }).join('') +
+      `<tr style="font-weight:700"><td>合計</td><td class="num">${list.filter(t=>t.type==='income').length}</td><td class="num" style="color:var(--income)">${fmt(inc)}</td><td class="num">100%</td></tr>` +
+      `</tbody></table>`;
+  }
+
+  function exportCSV(){
+    const list = monthTx();
+    if(list.length===0){ alert('這個月沒有資料可以匯出'); return; }
+    const header = ['日期','類型','分類','項目','金額'];
+    const lines = list.map(t=>[t.date, t.type==='income'?'收入':'支出', t.category, (t.note||'').replace(/,/g,'，'), t.amount].join(','));
+    const csv = '﻿' + header.join(',') + '\n' + lines.join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `財務明細_${currentMonth()}.csv`;
+    a.click();
+  }
+
+  function backupJSON(){
+    const data = load();
+    if(data.length===0){ alert('目前沒有資料可以備份'); return; }
+    const blob = new Blob([JSON.stringify(data,null,1)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `財務備份_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  }
+
+  function importJSON(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const incoming = JSON.parse(reader.result);
+        if(!Array.isArray(incoming)) throw new Error('not array');
+        const data = load();
+        const ids = new Set(data.map(t=>t.id));
+        let added=0, skipped=0;
+        incoming.forEach(t=>{
+          if(t && t.id && t.date && t.amount && (t.type==='income'||t.type==='expense')){
+            if(ids.has(t.id)){ skipped++; }
+            else{ data.push(t); ids.add(t.id); added++; }
+          }
+        });
+        save(data);
+        const first = incoming.find(t=>t && t.date);
+        if(first) document.getElementById('month').value = first.date.slice(0,7);
+        render();
+        alert(`匯入完成！新增 ${added} 筆` + (skipped?`，略過 ${skipped} 筆重複`:''));
+      }catch(err){
+        alert('檔案格式不正確，請選擇本 App 匯出的備份 JSON 檔');
+      }
+      e.target.value='';
+    };
+    reader.readAsText(file);
+  }
+
+  // 註冊 service worker（讓 App 可離線使用；需在 https 或 localhost 才會生效）
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
+
+  // 初始化
+  (function init(){
+    const now = new Date();
+    const ym = now.toISOString().slice(0,7);
+    const today = now.toISOString().slice(0,10);
+    document.getElementById('month').value = ym;
+    document.getElementById('date').value = today;
+    document.getElementById('month').addEventListener('change', render);
+    setType('income');
+    render();
+  })();
+</script>
+</body>
+</html>
