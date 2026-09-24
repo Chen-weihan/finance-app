@@ -201,12 +201,12 @@
       <div class="quick-grid" id="quickGrid"></div>
     </div>
     <div class="panel">
-      <h2>② 填金額</h2>
-      <div class="field" style="margin-bottom:10px"><label>分類</label><select id="quickCategory"></select></div>
+      <h2>② 填品項和金額</h2>
+      <div class="field" style="margin-bottom:10px"><label>買了什麼</label><input type="text" id="quickNote" placeholder="例：鴨翅、臨時工資、加油"></div>
       <div class="field" style="margin-bottom:10px"><label>金額</label><input type="number" id="quickAmount" inputmode="numeric" placeholder="輸入金額"></div>
-      <div class="field" style="margin-bottom:10px"><label>項目 / 備註（可留空）</label><input type="text" id="quickNote" placeholder="例：鴨翅40斤"></div>
       <div class="field" style="margin-bottom:12px"><label>日期</label><input type="date" id="quickDate"></div>
       <button class="btn-primary" id="quickAddBtn" onclick="quickAdd()">✓ 記這一筆</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">分類系統會自動判斷，你不用選 🙂</p>
     </div>
     <div class="panel"><h2>今天記過的</h2><div id="todayList"><div class="empty">今天還沒記帳</div></div></div>
   </div>
@@ -280,12 +280,28 @@
   };
   const ALL_EXP = Object.values(CATS.expense).flat();
   const CATMAP = [
-    [/鴨翅|鴨頭|鴨舌|鴨腱|鴨箭|鴨/, '鴨肉原料'],[/豬腱|三層|梅花|大腸|耳朵|豬腳|豬/, '豬肉原料'],
-    [/雞胗|雞爪|雞/, '雞肉原料'],[/豆干|豆乾|豆皮|豆腐|百[頁葉]/, '豆製品'],
-    [/蒜|蔥|薑|辣椒|紅蔥|麻辣|花椒|香油|辣油|中藥|滷包|孜然/, '辛香料'],
-    [/米血|水血|水煮蛋|雞蛋|鹹鴨蛋|蝦米|花生|栗子|香菇|魚|蓮子/, '食材'],
-    [/運費|宅配|黑貓|貨運/, '運費'],[/加油|油資|機油|保養|強制險/, '交通'],
-    [/包裝|真空|粽|貼紙/, '包裝材料'],[/濾芯|皮帶|除油|維修|機器/, '設備 / 維修'],[/水費|電費|瓦斯/, '水電瓦斯費']
+    [/工資|薪資|工錢|代工|人力|加班|獎金/, '工資 / 人力'],
+    [/勞健保|勞保|健保|勞退/, '勞健保費'],
+    [/鹹鴨蛋|皮蛋|雞蛋|鴨蛋|水煮蛋|鹹蛋/, '食材'],
+    [/鴨翅|鴨頭|鴨舌|鴨腱|鴨箭|鴨脖|鴨掌|鴨/, '鴨肉原料'],
+    [/豬腱|豬筋|三層|梅花|大腸|耳朵|豬腳|豬耳|豬/, '豬肉原料'],
+    [/雞胗|雞爪|雞心|雞翅|雞腿|雞/, '雞肉原料'],
+    [/豆干|豆乾|豆皮|豆腐|百[頁葉]|豆製/, '豆製品'],
+    [/蒜|蔥|薑|辣椒|紅蔥|麻辣|花椒|香油|辣油|中藥|滷包|孜然|胡椒|八角|桂枝|香料/, '辛香料'],
+    [/米血|水血|蝦米|花生|栗子|香菇|魚|蓮子|食材/, '食材'],
+    [/運費|宅配|黑貓|貨運|快遞|超商/, '運費'],
+    [/加油|油資|機油|保養|驗車|強制險|停車|過路/, '交通'],
+    [/包裝|真空|粽繩|粽葉|貼紙|紙箱|袋/, '包裝材料'],
+    [/濾芯|皮帶|除油|維修|修理|機器|設備|零件/, '設備 / 維修'],
+    [/水費|電費|瓦斯|台電|自來水/, '水電瓦斯費'],
+    [/房租|租金/, '房租'],
+    [/廣告|行銷|投放|廣宣/, '廣告 / 行銷費'],
+    [/佣金|分潤|拆帳|抽成|通路/, '佣金 / 分潤支出'],
+    [/系統|軟體|訂閱|erp/i, '軟體 / 資訊費'],
+    [/會計|記帳|簽證|顧問|律師|勞務/, '專業服務費'],
+    [/保險|公會/, '保險費'],
+    [/層架|抹布|鍋|收納|清潔|日用/, '生活日用品'],
+    [/善款|貢品|拜拜|捐/, '公益 / 祥事']
   ];
   function guessCat(n){ for(const [re,c] of CATMAP){ if(re.test(n||'')) return c; } return '其他支出'; }
   function groupOptions(obj,sel){ return Object.entries(obj).map(([g,items])=>`<optgroup label="${g}">`+items.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join('')+`</optgroup>`).join(''); }
@@ -465,12 +481,14 @@
     {label:'蒜頭',cat:'辛香料'},{label:'紅蔥頭',cat:'辛香料'},{label:'薑母',cat:'辛香料'},{label:'辣椒',cat:'辛香料'},{label:'麻辣醬',cat:'辛香料'},{label:'花椒油',cat:'辛香料'},{label:'香油',cat:'辛香料'},{label:'辣油',cat:'辛香料'},
     {label:'運費',cat:'運費'},{label:'雞爪代工',cat:'工資 / 人力'},{label:'加油',cat:'交通'},{label:'其他',cat:'其他支出'}
   ];
-  function buildQuick(){ document.getElementById('quickGrid').innerHTML=QUICK.map((q,i)=>`<button type="button" data-i="${i}" onclick="quickPick(${i})">${q.label}</button>`).join(''); document.getElementById('quickCategory').innerHTML=expOptions(); }
-  function quickPick(i){ const q=QUICK[i]; document.getElementById('quickCategory').value=q.cat; document.getElementById('quickNote').value=q.label==='其他'?'':q.label; document.getElementById('quickAmount').value=''; document.querySelectorAll('#quickGrid button').forEach(b=>b.classList.toggle('on',+b.dataset.i===i)); document.getElementById('quickAmount').focus(); }
+  function buildQuick(){ document.getElementById('quickGrid').innerHTML=QUICK.map((q,i)=>`<button type="button" data-i="${i}" onclick="quickPick(${i})">${q.label}</button>`).join(''); }
+  function quickPick(i){ const q=QUICK[i]; document.getElementById('quickNote').value=q.label==='其他'?'':q.label; document.getElementById('quickAmount').value=''; document.querySelectorAll('#quickGrid button').forEach(b=>b.classList.toggle('on',+b.dataset.i===i)); document.getElementById('quickAmount').focus(); }
   async function quickAdd(){
+    const name=document.getElementById('quickNote').value.trim();
     const amount=parseFloat(document.getElementById('quickAmount').value), date=document.getElementById('quickDate').value||todayStr();
+    if(!name){ alert('請點一個常買項目，或輸入「買了什麼」'); document.getElementById('quickNote').focus(); return; }
     if(!amount||amount<=0){ alert('請輸入金額'); document.getElementById('quickAmount').focus(); return; }
-    const rec={id:uid(),type:'expense',category:document.getElementById('quickCategory').value,amount,date,note:document.getElementById('quickNote').value.trim()};
+    const rec={id:uid(),type:'expense',category:guessCat(name),amount,date,note:name};
     const btn=document.getElementById('quickAddBtn'); btn.disabled=true; btn.textContent='儲存中…';
     const {error}=await sb.from('transactions').insert(rec); btn.disabled=false; btn.textContent='✓ 記這一筆';
     if(error){ alert('儲存失敗：'+error.message); return; }
