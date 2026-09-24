@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>拍照記帳</title>
+<meta name="theme-color" content="#2b2b29">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="拍照記帳">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#ffffff; --ink:#232321; --muted:#8f8f8a;
+    --line:#ededea; --brand:#2b2b29; --brand-soft:#efefec;
+    --expense:#b5504a;
+    --shadow:0 1px 2px rgba(20,20,20,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:16px 14px 60px}
+  header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  h1{font-size:20px;margin:0;font-weight:800}
+  h1 .sub{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:1px}
+  input,select,button{font-family:inherit}
+  input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],select{
+    border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink);width:100%;font-size:15px}
+  input:focus,select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+  .panel h2{font-size:14px;margin:0 0 10px;font-weight:700;color:var(--muted)}
+  .btn-primary{width:100%;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:15px;font-weight:800;font-size:17px;cursor:pointer}
+  .btn-primary:active{filter:brightness(.9)}
+  .btn-primary:disabled{opacity:.55}
+  .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;color:var(--ink);font-size:13px}
+  .btn-ghost:active{background:var(--bg)}
+  .drop{border:1.5px dashed #d5d5d0;border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer}
+  .drop:active{background:var(--bg)}
+  .drop .ico{font-size:34px;line-height:1}
+  #preview{max-width:100%;max-height:230px;border-radius:10px;margin-top:10px;display:none}
+  .demo-note{font-size:12px;color:#8a6d3b;background:#fbf3e3;border-radius:8px;padding:8px 10px;margin:10px 0}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:11px;color:var(--muted);font-weight:600;text-align:left;padding:4px 4px}
+  td{padding:3px 3px;vertical-align:top}
+  .items-head{display:grid;grid-template-columns:1.5fr 1fr .9fr .9fr 1.1fr 24px;gap:6px;font-size:11px;color:var(--muted);padding:0 2px 4px}
+  .item-row{display:grid;grid-template-columns:1.5fr 1fr .9fr .9fr 1.1fr 24px;gap:6px;margin-bottom:6px;align-items:center}
+  .item-row input,.item-row select{padding:8px 6px;font-size:14px}
+  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px}
+  .del:active{color:var(--expense)}
+  .sumbar{display:flex;justify-content:space-between;align-items:center;margin:12px 2px 4px;font-weight:800;font-size:16px}
+  .empty{text-align:center;color:var(--muted);padding:18px 0;font-size:14px}
+  .meta-row{display:flex;gap:10px;margin-bottom:12px}
+  .meta-row .field{flex:1}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1f2321;color:#fff;padding:12px 20px;border-radius:24px;font-size:15px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .login-wrap{max-width:360px;margin:10vh auto 0;padding:0 20px}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;box-shadow:var(--shadow);text-align:center}
+  .login-card img{width:60px;height:60px;border-radius:14px;margin:0 auto 12px;display:block}
+  .login-card h1{font-size:19px;margin:0 0 4px}
+  .login-card p{font-size:13px;color:var(--muted);margin:0 0 18px}
+  .login-err{color:var(--expense);font-size:13px;min-height:18px;margin:2px 0 6px}
+  @media(max-width:560px){
+    .items-head{grid-template-columns:1.3fr .9fr .8fr .8fr 1fr 22px}
+    .item-row{grid-template-columns:1.3fr .9fr .8fr .8fr 1fr 22px}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-wrap" style="display:none">
+  <div class="login-card">
+    <img src="icons/icon-192.png" alt="">
+    <h1>拍照記帳</h1>
+    <p>請用記帳帳號登入</p>
+    <div class="field" style="text-align:left"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+    <div class="field" style="text-align:left"><label>密碼</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">登入</button>
+  </div>
+</div>
+
+<div id="appScreen" class="wrap" style="display:none">
+  <header class="top">
+    <h1>拍照記帳<span class="sub">拍發票 → AI 讀出明細 → 確認入帳</span></h1>
+    <button class="btn-ghost" onclick="doLogout()">登出</button>
+  </header>
+
+  <div class="panel">
+    <h2>① 拍照 / 選一張進貨單</h2>
+    <label class="drop" for="photo">
+      <div class="ico">📷</div>
+      <div style="margin-top:6px;font-weight:600;color:var(--ink)">點這裡拍照或選圖</div>
+      <div style="font-size:12px;margin-top:2px">手機會直接開相機</div>
+    </label>
+    <input type="file" id="photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event)">
+    <img id="preview" alt="預覽">
+    <button class="btn-primary" id="scanBtn" style="margin-top:12px;display:none" onclick="recognize()">🤖 辨識這張發票</button>
+    <div class="demo-note" id="demoNote" style="display:none">目前是<b>介面原型</b>：辨識會先填入示範資料，讓你看流程。第 2 步接上 AI（Gemini）後，這裡就會<b>自動填入你拍的發票內容</b>。</div>
+  </div>
+
+  <div class="panel">
+    <h2>② 確認明細（可直接改）</h2>
+    <div class="meta-row">
+      <div class="field"><label>日期</label><input type="date" id="date"></div>
+      <div class="field"><label>供應商 / 單號（可留空）</label><input type="text" id="supplier" placeholder="例：彭彭、黑貓"></div>
+    </div>
+    <div class="items-head">
+      <span>品名</span><span>規格</span><span>單價</span><span>總價</span><span>分類</span><span></span>
+    </div>
+    <div id="itemList"><div class="empty">拍照辨識後，明細會出現在這裡；也可以手動「＋ 新增一列」。</div></div>
+    <button class="btn-ghost" style="margin-top:8px" onclick="addRow()">＋ 新增一列</button>
+    <div class="sumbar"><span>合計</span><span id="total" style="color:var(--expense)">$0</span></div>
+  </div>
+
+  <button class="btn-primary" id="saveBtn" onclick="saveAll()">✓ 確認入帳</button>
+  <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:12px">每一列會存成一筆支出，記進雲端，和記帳 App 同一份資料。</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://klswfpxrgzakcaynwqsg.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmcHhyZ3pha2NheW53cXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzA1NTAsImV4cCI6MjA5ODQ0NjU1MH0.mvwxRTqPSETCWHD_d3FVola3vb5WndvPohbuAomTwTk';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const EXPENSE_CATS = {
+    '原料 / 進貨':['鴨肉原料','豬肉原料','雞肉原料','豆製品','辛香料','食材'],
+    '人事費用':['工資 / 人力','勞健保費'],
+    '營運 / 製造費用':['包裝材料','設備 / 維修','水電瓦斯費','房租','運費','交通'],
+    '管理 / 銷售費用':['廣告 / 行銷費','佣金 / 分潤支出','軟體 / 資訊費','專業服務費','保險費'],
+    '其他':['生活日用品','雜貨','餐飲','公益 / 祥事','其他支出']
+  };
+  const ALL_CATS = Object.values(EXPENSE_CATS).flat();
+  const CATMAP = [
+    [/鴨翅|鴨頭|鴨舌|鴨腱|鴨箭|鴨/, '鴨肉原料'],
+    [/豬腱|三層|梅花|大腸|耳朵|豬腳|豬/, '豬肉原料'],
+    [/雞胗|雞爪|雞/, '雞肉原料'],
+    [/豆干|豆乾|豆皮|豆腐|百[頁葉]/, '豆製品'],
+    [/蒜|蔥|薑|辣椒|紅蔥|麻辣|花椒|香油|辣油|中藥|滷包|孜然/, '辛香料'],
+    [/米血|水血|水煮蛋|雞蛋|鹹鴨蛋|蝦米|花生|栗子|香菇|魚|蓮子/, '食材'],
+    [/運費|宅配|黑貓|貨運/, '運費'],
+    [/加油|油資|機油|保養|強制險/, '交通'],
+    [/包裝|真空|粽|貼紙/, '包裝材料'],
+    [/濾芯|皮帶|除油|維修|機器/, '設備 / 維修'],
+    [/水費|電費|瓦斯/, '水電瓦斯費']
+  ];
+  function guessCat(name){ for(const [re,c] of CATMAP){ if(re.test(name||'')) return c; } return '其他支出'; }
+  function catOptions(sel){ return ALL_CATS.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
+
+  let items = [];
+  let currentUser = null;
+  const fmt = (n)=>'$'+Math.round(n||0).toLocaleString('en-US');
+  const uid = ()=>Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
+  const todayStr = ()=>new Date().toISOString().slice(0,10);
+
+  async function doLogin(){
+    const email=document.getElementById('loginEmail').value.trim();
+    const password=document.getElementById('loginPassword').value;
+    const err=document.getElementById('loginErr'), btn=document.getElementById('loginBtn');
+    err.textContent='';
+    if(!email||!password){ err.textContent='請輸入帳號和密碼'; return; }
+    btn.disabled=true; btn.textContent='登入中…';
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    btn.disabled=false; btn.textContent='登入';
+    if(error){ err.textContent='登入失敗：'+(error.message==='Invalid login credentials'?'帳號或密碼錯誤':error.message); }
+  }
+  async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+  function showLogin(){ document.getElementById('appScreen').style.display='none'; document.getElementById('loginScreen').style.display='block'; }
+  function showApp(u){ currentUser=u; document.getElementById('loginScreen').style.display='none'; document.getElementById('appScreen').style.display='block'; }
+
+  function onPhoto(e){
+    const file=e.target.files[0];
+    if(!file) return;
+    const img=document.getElementById('preview');
+    img.src=URL.createObjectURL(file);
+    img.style.display='block';
+    document.getElementById('scanBtn').style.display='block';
+    document.getElementById('demoNote').style.display='block';
+  }
+
+  // 原型：辨識先填示範資料（第 2 步接上 Gemini 後改成真的讀圖）
+  function recognize(){
+    const btn=document.getElementById('scanBtn');
+    btn.disabled=true; btn.textContent='辨識中…';
+    setTimeout(()=>{
+      const demo=[
+        {name:'鴨翅', spec:'40斤', price:100, total:4000},
+        {name:'豆干', spec:'', price:0, total:2560},
+        {name:'豆皮', spec:'4條', price:560, total:2240},
+        {name:'蒜頭', spec:'5斤', price:75, total:375}
+      ];
+      items = demo.map(d=>({...d, cat:guessCat(d.name)}));
+      renderItems();
+      btn.disabled=false; btn.textContent='🤖 重新辨識';
+      showToast('已辨識 '+items.length+' 項（示範）');
+    },600);
+  }
+
+  function addRow(){ items.push({name:'',spec:'',price:'',total:'',cat:'其他支出'}); renderItems(); }
+  function delRow(i){ items.splice(i,1); renderItems(); }
+
+  function renderItems(){
+    const el=document.getElementById('itemList');
+    if(items.length===0){ el.innerHTML='<div class="empty">拍照辨識後，明細會出現在這裡；也可以手動「＋ 新增一列」。</div>'; updateTotal(); return; }
+    el.innerHTML=items.map((it,i)=>`
+      <div class="item-row">
+        <input type="text" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品名" oninput="upd(${i},'name',this.value)">
+        <input type="text" value="${(it.spec||'').replace(/"/g,'&quot;')}" placeholder="規格" oninput="upd(${i},'spec',this.value)">
+        <input type="number" value="${it.price??''}" placeholder="單價" inputmode="numeric" oninput="upd(${i},'price',this.value)">
+        <input type="number" value="${it.total??''}" placeholder="總價" inputmode="numeric" oninput="upd(${i},'total',this.value)">
+        <select onchange="upd(${i},'cat',this.value)">${catOptions(it.cat)}</select>
+        <button class="del" onclick="delRow(${i})" title="刪除">✕</button>
+      </div>`).join('');
+    updateTotal();
+  }
+  function upd(i,field,val){
+    items[i][field]=val;
+    if(field==='name'){ // 依品名自動猜分類（只在還沒被手動改時）
+      const guessed=guessCat(val);
+      const sel=document.querySelectorAll('.item-row')[i].querySelector('select');
+      if(sel && (items[i].cat==='其他支出' || !items[i].cat)){ items[i].cat=guessed; sel.value=guessed; }
+    }
+    if(field==='total') updateTotal();
+  }
+  function updateTotal(){
+    const t=items.reduce((s,it)=>s+(parseFloat(it.total)||0),0);
+    document.getElementById('total').textContent=fmt(t);
+  }
+
+  function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+  async function saveAll(){
+    const date=document.getElementById('date').value||todayStr();
+    const supplier=document.getElementById('supplier').value.trim();
+    const valid=items.filter(it=>(parseFloat(it.total)||0)>0);
+    if(valid.length===0){ alert('沒有可入帳的明細（每一列要有總價）'); return; }
+    const rows=valid.map(it=>({
+      id:uid(), type:'expense', category:it.cat||'其他支出',
+      amount:parseFloat(it.total), date:date,
+      note:[it.name,it.spec,supplier].filter(Boolean).join(' ')
+    }));
+    const btn=document.getElementById('saveBtn');
+    btn.disabled=true; btn.textContent='入帳中…';
+    const {error}=await sb.from('transactions').insert(rows);
+    btn.disabled=false; btn.textContent='✓ 確認入帳';
+    if(error){ alert('入帳失敗：'+error.message); return; }
+    showToast('已入帳 '+rows.length+' 筆 ✓');
+    items=[]; renderItems();
+    document.getElementById('preview').style.display='none';
+    document.getElementById('scanBtn').style.display='none';
+    document.getElementById('demoNote').style.display='none';
+    document.getElementById('supplier').value='';
+    document.getElementById('photo').value='';
+  }
+
+  (function init(){
+    document.getElementById('date').value=todayStr();
+    sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); } else { currentUser=null; showLogin(); } });
+    sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); } else showLogin(); });
+  })();
+</script>
+</body>
+</html>
