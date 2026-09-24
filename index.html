@@ -68,6 +68,7 @@
   th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
   th{font-size:12px;color:var(--muted);font-weight:600}
   td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .catsel{border:1px solid var(--line);border-radius:6px;padding:4px 4px;font-size:12px;max-width:120px;background:#fff;color:var(--ink)}
   .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--muted)}
   .tag.i{background:var(--income-soft);color:var(--income)} .tag.e{background:var(--expense-soft);color:var(--expense)}
   .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:6px}
@@ -428,6 +429,7 @@
     await fetchAll(); showToast('已新增 ✓');
   }
   async function dashDel(id){ if(!confirm('確定刪除這一筆？')) return; const {error}=await sb.from('transactions').delete().eq('id',id); if(error){alert('刪除失敗：'+error.message);return;} await fetchAll(); }
+  async function updTxCat(id,cat){ const {error}=await sb.from('transactions').update({category:cat}).eq('id',id); if(error){ alert('改分類失敗：'+error.message); return; } const t=TX.find(x=>x.id===id); if(t) t.category=cat; showToast('分類已改 ✓ '+cat); if(curView==='dashboard') renderDash(); }
   function renderDash(){
     const list=monthTx();
     const inc=list.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
@@ -438,7 +440,7 @@
     const ne=document.getElementById('sumNet'); ne.textContent=(net<0?'-':'')+fmt(Math.abs(net)); ne.className='v '+(net<0?'neg':'pos');
     const body=document.getElementById('dashTxBody'), emp=document.getElementById('dashTxEmpty');
     if(list.length===0){ body.innerHTML=''; emp.style.display='block'; }
-    else{ emp.style.display='none'; body.innerHTML=list.map(t=>`<tr><td>${t.date.slice(5)}</td><td><span class="tag ${t.type==='income'?'i':'e'}">${t.type==='income'?'收入':'支出'}</span></td><td>${t.category}</td><td>${t.note||'—'}</td><td class="num" style="color:${t.type==='income'?'var(--income)':'var(--expense)'}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</td><td style="text-align:right"><button class="del" onclick="dashDel('${t.id}')">✕</button></td></tr>`).join(''); }
+    else{ emp.style.display='none'; body.innerHTML=list.map(t=>`<tr><td>${t.date.slice(5)}</td><td><span class="tag ${t.type==='income'?'i':'e'}">${t.type==='income'?'收入':'支出'}</span></td><td><select class="catsel" onchange="updTxCat('${t.id}',this.value)">${groupOptions(t.type==='income'?CATS.income:CATS.expense, t.category)}</select></td><td>${t.note||'—'}</td><td class="num" style="color:${t.type==='income'?'var(--income)':'var(--expense)'}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</td><td style="text-align:right"><button class="del" onclick="dashDel('${t.id}')">✕</button></td></tr>`).join(''); }
     // chart
     const chart=document.getElementById('dashChart');
     if(list.length===0){ chart.innerHTML='<div class="empty">這個月還沒有紀錄</div>'; }
