@@ -98,7 +98,7 @@
     <input type="file" id="photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event)">
     <img id="preview" alt="預覽">
     <button class="btn-primary" id="scanBtn" style="margin-top:12px;display:none" onclick="recognize()">🤖 辨識這張發票</button>
-    <div class="demo-note" id="demoNote" style="display:none">目前是<b>介面原型</b>：辨識會先填入示範資料，讓你看流程。第 2 步接上 AI（Gemini）後，這裡就會<b>自動填入你拍的發票內容</b>。</div>
+    <div class="demo-note" id="demoNote" style="display:none">💡 拍清楚、正對發票、光線充足，辨識最準。辨識後每一格都能手動修正再入帳。</div>
   </div>
 
   <div class="panel">
@@ -151,6 +151,7 @@
   function catOptions(sel){ return ALL_CATS.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
 
   let items = [];
+  let selectedFile = null;
   let currentUser = null;
   const fmt = (n)=>'$'+Math.round(n||0).toLocaleString('en-US');
   const uid = ()=>Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
@@ -174,6 +175,7 @@
   function onPhoto(e){
     const file=e.target.files[0];
     if(!file) return;
+    selectedFile=file;
     const img=document.getElementById('preview');
     img.src=URL.createObjectURL(file);
     img.style.display='block';
@@ -181,22 +183,51 @@
     document.getElementById('demoNote').style.display='block';
   }
 
-  // 原型：辨識先填示範資料（第 2 步接上 Gemini 後改成真的讀圖）
-  function recognize(){
+  // 把圖片縮小後轉成 base64（省流量、省 AI 成本）
+  function fileToB64(file, maxDim){
+    return new Promise((res,rej)=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',0.85).split(',')[1]);
+      };
+      img.onerror=()=>rej(new Error('圖片讀取失敗'));
+      img.src=URL.createObjectURL(file);
+    });
+  }
+
+  // 真的呼叫 Claude 讀發票
+  async function recognize(){
+    if(!selectedFile){ alert('請先拍照或選一張圖'); return; }
     const btn=document.getElementById('scanBtn');
-    btn.disabled=true; btn.textContent='辨識中…';
-    setTimeout(()=>{
-      const demo=[
-        {name:'鴨翅', spec:'40斤', price:100, total:4000},
-        {name:'豆干', spec:'', price:0, total:2560},
-        {name:'豆皮', spec:'4條', price:560, total:2240},
-        {name:'蒜頭', spec:'5斤', price:75, total:375}
-      ];
-      items = demo.map(d=>({...d, cat:guessCat(d.name)}));
-      renderItems();
+    btn.disabled=true; btn.textContent='🤖 AI 辨識中…（約 10 秒）';
+    try{
+      const b64 = await fileToB64(selectedFile, 1600);
+      const { data:{ session } } = await sb.auth.getSession();
+      if(!session){ throw new Error('登入已過期，請重新登入'); }
+      const resp = await fetch(SUPABASE_URL + '/functions/v1/scan-invoice', {
+        method:'POST',
+        headers:{ 'apikey':SUPABASE_ANON, 'Authorization':'Bearer '+session.access_token, 'Content-Type':'application/json' },
+        body: JSON.stringify({ image:b64, media_type:'image/jpeg' })
+      });
+      const data = await resp.json();
+      if(!resp.ok){ throw new Error(data.error || ('HTTP '+resp.status)); }
+      const list = (data.items||[]).map(it=>({
+        name: it.name||'', spec: it.spec||'',
+        price: (it.price===0||it.price==null)?'':it.price,
+        total: it.total||'', cat: guessCat(it.name||'')
+      }));
+      items = list; renderItems();
+      if(list.length===0){ showToast('沒讀到明細，可手動新增或換清楚一點的照片'); }
+      else{ showToast('辨識完成，共 '+list.length+' 項 ✓'); }
+    }catch(e){
+      alert('辨識失敗：'+e.message+'\n\n可以先手動「＋ 新增一列」記，或稍後再試一次。');
+    }finally{
       btn.disabled=false; btn.textContent='🤖 重新辨識';
-      showToast('已辨識 '+items.length+' 項（示範）');
-    },600);
+    }
   }
 
   function addRow(){ items.push({name:'',spec:'',price:'',total:'',cat:'其他支出'}); renderItems(); }
