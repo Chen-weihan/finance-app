@@ -214,7 +214,7 @@
         body: JSON.stringify({ image:b64, media_type:'image/jpeg' })
       });
       const data = await resp.json();
-      if(!resp.ok){ throw new Error(data.error || ('HTTP '+resp.status)); }
+      if(!resp.ok){ throw new Error((data.error||('HTTP '+resp.status)) + (data.detail? ('\n細節：'+JSON.stringify(data.detail).slice(0,400)) : '')); }
       const list = (data.items||[]).map(it=>({
         name: it.name||'', spec: it.spec||'',
         price: (it.price===0||it.price==null)?'':it.price,
