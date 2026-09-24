@@ -12,14 +12,13 @@
 <style>
   :root{
     --bg:#f6f6f4; --card:#ffffff; --ink:#232321; --muted:#8f8f8a;
-    --line:#ededea; --brand:#2b2b29; --brand-soft:#efefec;
-    --expense:#b5504a;
+    --line:#ededea; --brand:#2b2b29; --brand-soft:#efefec; --expense:#b5504a;
     --shadow:0 1px 2px rgba(20,20,20,.04);
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,"PingFang TC","Helvetica Neue",Arial,sans-serif;
     background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:720px;margin:0 auto;padding:16px 14px 60px}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px}
   header.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
   h1{font-size:20px;margin:0;font-weight:800}
   h1 .sub{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:1px}
@@ -30,41 +29,35 @@
   .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
   .panel h2{font-size:14px;margin:0 0 10px;font-weight:700;color:var(--muted)}
   .btn-primary{width:100%;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:15px;font-weight:800;font-size:17px;cursor:pointer}
-  .btn-primary:active{filter:brightness(.9)}
-  .btn-primary:disabled{opacity:.55}
+  .btn-primary:active{filter:brightness(.9)} .btn-primary:disabled{opacity:.55}
   .btn-ghost{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;color:var(--ink);font-size:13px}
   .btn-ghost:active{background:var(--bg)}
-  .drop{border:1.5px dashed #d5d5d0;border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer}
-  .drop:active{background:var(--bg)}
-  .drop .ico{font-size:34px;line-height:1}
-  #preview{max-width:100%;max-height:230px;border-radius:10px;margin-top:10px;display:none}
-  .demo-note{font-size:12px;color:#8a6d3b;background:#fbf3e3;border-radius:8px;padding:8px 10px;margin:10px 0}
+  .drop{border:1.5px dashed #d5d5d0;border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;display:block}
+  .drop:active{background:var(--bg)} .drop .ico{font-size:34px;line-height:1}
+  .thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+  .thumbs img{height:64px;border-radius:8px;border:1px solid var(--line)}
+  .progress{font-size:13px;color:var(--muted);margin-top:10px;text-align:center}
 
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th{font-size:11px;color:var(--muted);font-weight:600;text-align:left;padding:4px 4px}
-  td{padding:3px 3px;vertical-align:top}
-  .items-head{display:grid;grid-template-columns:1.5fr 1fr .9fr .9fr 1.1fr 24px;gap:6px;font-size:11px;color:var(--muted);padding:0 2px 4px}
-  .item-row{display:grid;grid-template-columns:1.5fr 1fr .9fr .9fr 1.1fr 24px;gap:6px;margin-bottom:6px;align-items:center}
+  .inv-card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fcfcfb}
+  .inv-head{display:grid;grid-template-columns:auto 1.3fr 1fr 24px;gap:8px;align-items:center;margin-bottom:10px}
+  .inv-badge{font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-soft);padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .items-head{display:grid;grid-template-columns:1.5fr 1fr .85fr .85fr 1.1fr 22px;gap:6px;font-size:11px;color:var(--muted);padding:0 2px 4px}
+  .item-row{display:grid;grid-template-columns:1.5fr 1fr .85fr .85fr 1.1fr 22px;gap:6px;margin-bottom:6px;align-items:center}
   .item-row input,.item-row select{padding:8px 6px;font-size:14px}
-  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px}
-  .del:active{color:var(--expense)}
-  .sumbar{display:flex;justify-content:space-between;align-items:center;margin:12px 2px 4px;font-weight:800;font-size:16px}
+  .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px} .del:active{color:var(--expense)}
+  .sumbar{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 4px;font-weight:800;font-size:17px}
   .empty{text-align:center;color:var(--muted);padding:18px 0;font-size:14px}
-  .meta-row{display:flex;gap:10px;margin-bottom:12px}
-  .meta-row .field{flex:1}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1f2321;color:#fff;padding:12px 20px;border-radius:24px;font-size:15px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:50}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
   .login-wrap{max-width:360px;margin:10vh auto 0;padding:0 20px}
   .login-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;box-shadow:var(--shadow);text-align:center}
   .login-card img{width:60px;height:60px;border-radius:14px;margin:0 auto 12px;display:block}
-  .login-card h1{font-size:19px;margin:0 0 4px}
-  .login-card p{font-size:13px;color:var(--muted);margin:0 0 18px}
+  .login-card h1{font-size:19px;margin:0 0 4px} .login-card p{font-size:13px;color:var(--muted);margin:0 0 18px}
   .login-err{color:var(--expense);font-size:13px;min-height:18px;margin:2px 0 6px}
   @media(max-width:560px){
-    .items-head{grid-template-columns:1.3fr .9fr .8fr .8fr 1fr 22px}
-    .item-row{grid-template-columns:1.3fr .9fr .8fr .8fr 1fr 22px}
+    .items-head{grid-template-columns:1.3fr .8fr .8fr .8fr 1fr 20px}
+    .item-row{grid-template-columns:1.3fr .8fr .8fr .8fr 1fr 20px}
+    .inv-head{grid-template-columns:auto 1fr 1fr 22px}
   }
 </style>
 </head>
@@ -75,8 +68,8 @@
     <img src="icons/icon-192.png" alt="">
     <h1>拍照記帳</h1>
     <p>請用記帳帳號登入</p>
-    <div class="field" style="text-align:left"><label>Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
-    <div class="field" style="text-align:left"><label>密碼</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
+    <div style="text-align:left;margin-bottom:10px"><label style="font-size:12px;color:var(--muted)">Email</label><input type="email" id="loginEmail" autocomplete="username"></div>
+    <div style="text-align:left;margin-bottom:10px"><label style="font-size:12px;color:var(--muted)">密碼</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn-primary" id="loginBtn" onclick="doLogin()">登入</button>
   </div>
@@ -84,38 +77,31 @@
 
 <div id="appScreen" class="wrap" style="display:none">
   <header class="top">
-    <h1>拍照記帳<span class="sub">拍發票 → AI 讀出明細 → 確認入帳</span></h1>
+    <h1>拍照記帳<span class="sub">一次拍多張 → AI 讀出明細 → 一起入帳</span></h1>
     <button class="btn-ghost" onclick="doLogout()">登出</button>
   </header>
 
   <div class="panel">
-    <h2>① 拍照 / 選一張進貨單</h2>
+    <h2>① 拍照 / 選多張進貨單</h2>
     <label class="drop" for="photo">
       <div class="ico">📷</div>
-      <div style="margin-top:6px;font-weight:600;color:var(--ink)">點這裡拍照或選圖</div>
-      <div style="font-size:12px;margin-top:2px">手機會直接開相機</div>
+      <div style="margin-top:6px;font-weight:600;color:var(--ink)">點這裡拍照，或一次選多張</div>
+      <div style="font-size:12px;margin-top:2px">先在相機拍好整疊，再一次選起來最快</div>
     </label>
-    <input type="file" id="photo" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event)">
-    <img id="preview" alt="預覽">
-    <button class="btn-primary" id="scanBtn" style="margin-top:12px;display:none" onclick="recognize()">🤖 辨識這張發票</button>
-    <div class="demo-note" id="demoNote" style="display:none">💡 拍清楚、正對發票、光線充足，辨識最準。辨識後每一格都能手動修正再入帳。</div>
+    <input type="file" id="photo" accept="image/*" multiple style="display:none" onchange="onPhotos(event)">
+    <div class="thumbs" id="thumbs"></div>
+    <button class="btn-primary" id="scanBtn" style="margin-top:12px;display:none" onclick="recognize()">🤖 辨識</button>
+    <div class="progress" id="progress" style="display:none"></div>
   </div>
 
   <div class="panel">
-    <h2>② 確認明細（可直接改）</h2>
-    <div class="meta-row">
-      <div class="field"><label>日期</label><input type="date" id="date"></div>
-      <div class="field"><label>供應商 / 單號（可留空）</label><input type="text" id="supplier" placeholder="例：彭彭、黑貓"></div>
-    </div>
-    <div class="items-head">
-      <span>品名</span><span>規格</span><span>單價</span><span>總價</span><span>分類</span><span></span>
-    </div>
-    <div id="itemList"><div class="empty">拍照辨識後，明細會出現在這裡；也可以手動「＋ 新增一列」。</div></div>
-    <button class="btn-ghost" style="margin-top:8px" onclick="addRow()">＋ 新增一列</button>
-    <div class="sumbar"><span>合計</span><span id="total" style="color:var(--expense)">$0</span></div>
+    <h2>② 確認明細（每張一區，可直接改）</h2>
+    <div id="invoiceList"><div class="empty">辨識後，每張發票會變成一區明細；也可以「＋ 手動新增一張」。</div></div>
+    <button class="btn-ghost" style="margin-top:6px" onclick="addBlankInvoice()">＋ 手動新增一張發票</button>
+    <div class="sumbar"><span>全部合計</span><span id="total" style="color:var(--expense)">$0</span></div>
   </div>
 
-  <button class="btn-primary" id="saveBtn" onclick="saveAll()">✓ 確認入帳</button>
+  <button class="btn-primary" id="saveBtn" onclick="saveAll()">✓ 全部確認入帳</button>
   <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:12px">每一列會存成一筆支出，記進雲端，和記帳 App 同一份資料。</p>
 </div>
 
@@ -150,12 +136,13 @@
   function guessCat(name){ for(const [re,c] of CATMAP){ if(re.test(name||'')) return c; } return '其他支出'; }
   function catOptions(sel){ return ALL_CATS.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
 
-  let items = [];
-  let selectedFile = null;
+  let invoices = [];      // [{id,date,supplier,items:[{name,spec,price,total,cat}]}]
+  let selectedFiles = [];
   let currentUser = null;
   const fmt = (n)=>'$'+Math.round(n||0).toLocaleString('en-US');
-  const uid = ()=>Date.now().toString(36)+Math.floor(Math.random()*1e5).toString(36);
+  const uid = ()=>Date.now().toString(36)+Math.floor(Math.random()*1e6).toString(36);
   const todayStr = ()=>new Date().toISOString().slice(0,10);
+  const esc = (s)=>(s||'').replace(/"/g,'&quot;');
 
   async function doLogin(){
     const email=document.getElementById('loginEmail').value.trim();
@@ -172,18 +159,15 @@
   function showLogin(){ document.getElementById('appScreen').style.display='none'; document.getElementById('loginScreen').style.display='block'; }
   function showApp(u){ currentUser=u; document.getElementById('loginScreen').style.display='none'; document.getElementById('appScreen').style.display='block'; }
 
-  function onPhoto(e){
-    const file=e.target.files[0];
-    if(!file) return;
-    selectedFile=file;
-    const img=document.getElementById('preview');
-    img.src=URL.createObjectURL(file);
-    img.style.display='block';
-    document.getElementById('scanBtn').style.display='block';
-    document.getElementById('demoNote').style.display='block';
+  function onPhotos(e){
+    selectedFiles = Array.from(e.target.files||[]);
+    const t=document.getElementById('thumbs');
+    t.innerHTML = selectedFiles.map(f=>`<img src="${URL.createObjectURL(f)}">`).join('');
+    const btn=document.getElementById('scanBtn');
+    if(selectedFiles.length){ btn.style.display='block'; btn.textContent='🤖 辨識這 '+selectedFiles.length+' 張'; }
+    else btn.style.display='none';
   }
 
-  // 把圖片縮小後轉成 base64（省流量、省 AI 成本）
   function fileToB64(file, maxDim){
     return new Promise((res,rej)=>{
       const img=new Image();
@@ -199,96 +183,123 @@
     });
   }
 
-  // 真的呼叫 Claude 讀發票
+  async function scanOne(file){
+    const b64 = await fileToB64(file, 1600);
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) throw new Error('登入已過期，請重新登入');
+    const resp = await fetch(SUPABASE_URL + '/functions/v1/scan-invoice', {
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_ANON, 'Authorization':'Bearer '+session.access_token, 'Content-Type':'application/json' },
+      body: JSON.stringify({ image:b64, media_type:'image/jpeg' })
+    });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error((data.error||('HTTP '+resp.status)) + (data.detail? ('\n細節：'+JSON.stringify(data.detail).slice(0,300)) : ''));
+    return data; // {date, supplier, items}
+  }
+
   async function recognize(){
-    if(!selectedFile){ alert('請先拍照或選一張圖'); return; }
-    const btn=document.getElementById('scanBtn');
-    btn.disabled=true; btn.textContent='🤖 AI 辨識中…（約 10 秒）';
-    try{
-      const b64 = await fileToB64(selectedFile, 1600);
-      const { data:{ session } } = await sb.auth.getSession();
-      if(!session){ throw new Error('登入已過期，請重新登入'); }
-      const resp = await fetch(SUPABASE_URL + '/functions/v1/scan-invoice', {
-        method:'POST',
-        headers:{ 'apikey':SUPABASE_ANON, 'Authorization':'Bearer '+session.access_token, 'Content-Type':'application/json' },
-        body: JSON.stringify({ image:b64, media_type:'image/jpeg' })
-      });
-      const data = await resp.json();
-      if(!resp.ok){ throw new Error((data.error||('HTTP '+resp.status)) + (data.detail? ('\n細節：'+JSON.stringify(data.detail).slice(0,400)) : '')); }
-      const list = (data.items||[]).map(it=>({
-        name: it.name||'', spec: it.spec||'',
-        price: (it.price===0||it.price==null)?'':it.price,
-        total: it.total||'', cat: guessCat(it.name||'')
-      }));
-      items = list; renderItems();
-      if(list.length===0){ showToast('沒讀到明細，可手動新增或換清楚一點的照片'); }
-      else{ showToast('辨識完成，共 '+list.length+' 項 ✓'); }
-    }catch(e){
-      alert('辨識失敗：'+e.message+'\n\n可以先手動「＋ 新增一列」記，或稍後再試一次。');
-    }finally{
-      btn.disabled=false; btn.textContent='🤖 重新辨識';
+    if(!selectedFiles.length){ alert('請先拍照或選圖'); return; }
+    const btn=document.getElementById('scanBtn'), prog=document.getElementById('progress');
+    btn.disabled=true; prog.style.display='block';
+    let done=0, idx=0, ok=0, fail=0;
+    const files=selectedFiles;
+    prog.textContent='辨識中… 0/'+files.length;
+    const CONC=Math.min(3, files.length);
+    async function worker(){
+      while(idx<files.length){
+        const my=idx++;
+        try{
+          const r=await scanOne(files[my]);
+          const items=(r.items||[]).map(it=>({
+            name:it.name||'', spec:it.spec||'',
+            price:(it.price===0||it.price==null)?'':it.price,
+            total:it.total||'', cat:guessCat(it.name||'')
+          }));
+          invoices.push({ id:uid(), date:(r.date||todayStr()), supplier:(r.supplier||''), items:items.length?items:[blankItem()] });
+          ok++;
+        }catch(e){ fail++; if(my===0) window.__firstErr=e.message; }
+        done++; prog.textContent='辨識中… '+done+'/'+files.length;
+        renderInvoices();
+      }
     }
+    await Promise.all(Array.from({length:CONC}, worker));
+    btn.disabled=false; prog.style.display='none';
+    // 清掉這批，讓下一批乾淨
+    selectedFiles=[]; document.getElementById('thumbs').innerHTML=''; btn.style.display='none'; document.getElementById('photo').value='';
+    let msg='辨識完成：成功 '+ok+' 張';
+    if(fail){ msg+='、失敗 '+fail+' 張'; }
+    showToast(msg);
+    if(fail && window.__firstErr){ alert('有 '+fail+' 張辨識失敗。\n第一個錯誤：'+window.__firstErr+'\n\n失敗的可以重拍，或用「手動新增」補。'); }
   }
 
-  function addRow(){ items.push({name:'',spec:'',price:'',total:'',cat:'其他支出'}); renderItems(); }
-  function delRow(i){ items.splice(i,1); renderItems(); }
-
-  function renderItems(){
-    const el=document.getElementById('itemList');
-    if(items.length===0){ el.innerHTML='<div class="empty">拍照辨識後，明細會出現在這裡；也可以手動「＋ 新增一列」。</div>'; updateTotal(); return; }
-    el.innerHTML=items.map((it,i)=>`
-      <div class="item-row">
-        <input type="text" value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="品名" oninput="upd(${i},'name',this.value)">
-        <input type="text" value="${(it.spec||'').replace(/"/g,'&quot;')}" placeholder="規格" oninput="upd(${i},'spec',this.value)">
-        <input type="number" value="${it.price??''}" placeholder="單價" inputmode="numeric" oninput="upd(${i},'price',this.value)">
-        <input type="number" value="${it.total??''}" placeholder="總價" inputmode="numeric" oninput="upd(${i},'total',this.value)">
-        <select onchange="upd(${i},'cat',this.value)">${catOptions(it.cat)}</select>
-        <button class="del" onclick="delRow(${i})" title="刪除">✕</button>
-      </div>`).join('');
-    updateTotal();
-  }
-  function upd(i,field,val){
-    items[i][field]=val;
-    if(field==='name'){ // 依品名自動猜分類（只在還沒被手動改時）
-      const guessed=guessCat(val);
-      const sel=document.querySelectorAll('.item-row')[i].querySelector('select');
-      if(sel && (items[i].cat==='其他支出' || !items[i].cat)){ items[i].cat=guessed; sel.value=guessed; }
+  function blankItem(){ return {name:'',spec:'',price:'',total:'',cat:'其他支出'}; }
+  function addBlankInvoice(){ invoices.push({ id:uid(), date:todayStr(), supplier:'', items:[blankItem()] }); renderInvoices(); }
+  function delInvoice(i){ invoices.splice(i,1); renderInvoices(); }
+  function addRow(i){ invoices[i].items.push(blankItem()); renderInvoices(); }
+  function delRow(i,j){ invoices[i].items.splice(j,1); if(invoices[i].items.length===0) invoices[i].items.push(blankItem()); renderInvoices(); }
+  function updInv(i,field,val){ invoices[i][field]=val; }
+  function updItem(i,j,field,val){
+    invoices[i].items[j][field]=val;
+    if(field==='name'){
+      const row=document.querySelectorAll('.inv-card')[i].querySelectorAll('.item-row')[j];
+      const sel=row.querySelector('select');
+      if(sel && (invoices[i].items[j].cat==='其他支出'||!invoices[i].items[j].cat)){ const g=guessCat(val); invoices[i].items[j].cat=g; sel.value=g; }
     }
     if(field==='total') updateTotal();
   }
+
+  function renderInvoices(){
+    const el=document.getElementById('invoiceList');
+    if(invoices.length===0){ el.innerHTML='<div class="empty">辨識後，每張發票會變成一區明細；也可以「＋ 手動新增一張」。</div>'; updateTotal(); return; }
+    el.innerHTML=invoices.map((inv,i)=>`
+      <div class="inv-card">
+        <div class="inv-head">
+          <span class="inv-badge">📄 ${i+1}</span>
+          <input type="text" value="${esc(inv.supplier)}" placeholder="供應商" oninput="updInv(${i},'supplier',this.value)">
+          <input type="date" value="${inv.date||''}" oninput="updInv(${i},'date',this.value)">
+          <button class="del" onclick="delInvoice(${i})" title="刪掉整張">✕</button>
+        </div>
+        <div class="items-head"><span>品名</span><span>規格</span><span>單價</span><span>總價</span><span>分類</span><span></span></div>
+        ${inv.items.map((it,j)=>`
+          <div class="item-row">
+            <input type="text" value="${esc(it.name)}" placeholder="品名" oninput="updItem(${i},${j},'name',this.value)">
+            <input type="text" value="${esc(it.spec)}" placeholder="規格" oninput="updItem(${i},${j},'spec',this.value)">
+            <input type="number" value="${it.price??''}" placeholder="單價" inputmode="numeric" oninput="updItem(${i},${j},'price',this.value)">
+            <input type="number" value="${it.total??''}" placeholder="總價" inputmode="numeric" oninput="updItem(${i},${j},'total',this.value)">
+            <select onchange="updItem(${i},${j},'cat',this.value)">${catOptions(it.cat)}</select>
+            <button class="del" onclick="delRow(${i},${j})" title="刪除">✕</button>
+          </div>`).join('')}
+        <button class="btn-ghost" style="margin-top:4px" onclick="addRow(${i})">＋ 新增一列</button>
+      </div>`).join('');
+    updateTotal();
+  }
   function updateTotal(){
-    const t=items.reduce((s,it)=>s+(parseFloat(it.total)||0),0);
+    let t=0; invoices.forEach(inv=>inv.items.forEach(it=>t+=(parseFloat(it.total)||0)));
     document.getElementById('total').textContent=fmt(t);
   }
 
-  function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+  function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 
   async function saveAll(){
-    const date=document.getElementById('date').value||todayStr();
-    const supplier=document.getElementById('supplier').value.trim();
-    const valid=items.filter(it=>(parseFloat(it.total)||0)>0);
-    if(valid.length===0){ alert('沒有可入帳的明細（每一列要有總價）'); return; }
-    const rows=valid.map(it=>({
-      id:uid(), type:'expense', category:it.cat||'其他支出',
-      amount:parseFloat(it.total), date:date,
-      note:[it.name,it.spec,supplier].filter(Boolean).join(' ')
-    }));
+    const rows=[];
+    invoices.forEach(inv=>{
+      const date=inv.date||todayStr();
+      inv.items.forEach(it=>{
+        const total=parseFloat(it.total)||0;
+        if(total>0) rows.push({ id:uid(), type:'expense', category:it.cat||'其他支出', amount:total, date:date, note:[it.name,it.spec,inv.supplier].filter(Boolean).join(' ') });
+      });
+    });
+    if(rows.length===0){ alert('沒有可入帳的明細（每一列要有總價）'); return; }
     const btn=document.getElementById('saveBtn');
     btn.disabled=true; btn.textContent='入帳中…';
     const {error}=await sb.from('transactions').insert(rows);
-    btn.disabled=false; btn.textContent='✓ 確認入帳';
+    btn.disabled=false; btn.textContent='✓ 全部確認入帳';
     if(error){ alert('入帳失敗：'+error.message); return; }
     showToast('已入帳 '+rows.length+' 筆 ✓');
-    items=[]; renderItems();
-    document.getElementById('preview').style.display='none';
-    document.getElementById('scanBtn').style.display='none';
-    document.getElementById('demoNote').style.display='none';
-    document.getElementById('supplier').value='';
-    document.getElementById('photo').value='';
+    invoices=[]; renderInvoices();
   }
 
   (function init(){
-    document.getElementById('date').value=todayStr();
     sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); } else { currentUser=null; showLogin(); } });
     sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); } else showLogin(); });
   })();

@@ -38,11 +38,12 @@ Deno.serve(async (req) => {
     if (!image) return json({ error: "沒有收到影像" }, 400);
 
     const prompt =
-      "你是記帳助手。這是一張台灣進貨單／發票的照片。請抽取每一列品項，" +
+      "你是記帳助手。這是一張台灣進貨單／發票的照片。請讀出：發票日期、供應商／店家名稱，以及每一列品項。" +
       "只回傳純 JSON、不要任何多餘文字，格式：" +
-      '{"items":[{"name":"品名","spec":"規格(沒有就空字串)","price":單價數字,"total":總價數字}]}。' +
-      "規則：金額只保留數字（去掉逗號、貨幣符號）；單價或看不清楚的給 0 或空字串；" +
-      "同一列若只有總價沒有單價，price 給 0；只回 JSON。";
+      '{"date":"YYYY-MM-DD","supplier":"店家名稱","items":[{"name":"品名","spec":"規格","price":單價數字,"total":總價數字}]}。' +
+      "規則：日期轉成西元 YYYY-MM-DD（若是民國年請把年份加 1911，例如 115 年→2026 年）；" +
+      "讀不到日期或供應商就給空字串；金額只保留數字（去掉逗號、貨幣符號）；" +
+      "單價看不清楚給 0；只回 JSON。";
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -69,11 +70,14 @@ Deno.serve(async (req) => {
 
     const text = aiData?.content?.[0]?.text ?? "";
     const match = text.match(/\{[\s\S]*\}/);
-    let items: unknown[] = [];
+    let out = { date: "", supplier: "", items: [] as unknown[] };
     if (match) {
-      try { items = (JSON.parse(match[0]).items) ?? []; } catch (_) { items = []; }
+      try {
+        const p = JSON.parse(match[0]);
+        out = { date: p.date || "", supplier: p.supplier || "", items: p.items || [] };
+      } catch (_) { /* keep default */ }
     }
-    return json({ items });
+    return json(out);
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
