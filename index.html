@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="包飯店財務長">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root{
     --bg:#f6f6f4; --card:#ffffff; --ink:#232321; --muted:#8f8f8a;
@@ -225,12 +226,23 @@
     <button class="btn-primary" id="scanSaveBtn" onclick="scanSaveAll()">✓ 全部確認入帳</button>
   </div>
 
+  <!-- ===== 戰情室 ===== -->
+  <div id="view-war" style="display:none">
+    <div class="month-pick"><label for="warYear">年度</label><select id="warYear" onchange="renderWar()"></select></div>
+    <div id="warKpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px"></div>
+    <div class="panel"><h2>每月收支 / 結餘趨勢</h2><canvas id="chartTrend" height="170"></canvas></div>
+    <div class="panel"><h2>支出花在哪（今年各大類）</h2><canvas id="chartExpense" height="170"></canvas></div>
+    <div class="panel"><h2>本月 vs 上月（各大類支出）</h2><div id="warCompare"><div class="empty">—</div></div></div>
+    <div class="panel"><h2>三大原料成本追蹤</h2><canvas id="chartMaterials" height="170"></canvas><div id="warMatPct" style="margin-top:8px;font-size:13px;color:var(--muted)"></div></div>
+  </div>
+
 </div>
 
 <nav id="nav">
   <button data-view="dashboard" onclick="showView('dashboard')"><span class="ico">📊</span><span>總覽</span></button>
   <button data-view="quick" onclick="showView('quick')"><span class="ico">🛒</span><span>採買</span></button>
   <button data-view="scan" onclick="showView('scan')"><span class="ico">📷</span><span>拍照</span></button>
+  <button data-view="war" onclick="showView('war')"><span class="ico">🎯</span><span>戰情室</span></button>
 </nav>
 </div>
 
@@ -289,12 +301,66 @@
   // ===== 導覽 =====
   function showView(name){
     curView=name;
-    ['dashboard','quick','scan'].forEach(v=>document.getElementById('view-'+v).style.display=(v===name)?'block':'none');
+    ['dashboard','quick','scan','war'].forEach(v=>document.getElementById('view-'+v).style.display=(v===name)?'block':'none');
     document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.view===name));
     try{ location.hash=name; }catch(_){}
     if(name==='dashboard') renderDash();
     if(name==='quick') renderToday();
+    if(name==='war') renderWar();
     window.scrollTo(0,0);
+  }
+
+  // 分類 → 大類 對照
+  const CAT2GROUP={}; Object.entries(CATS.expense).forEach(([g,arr])=>arr.forEach(c=>CAT2GROUP[c]=g));
+  const GROUPS=Object.keys(CATS.expense);
+  const GROUP_COLORS=['#b5504a','#c98a3a','#3f7d4f','#4a6d8c','#8f8f8a'];
+  let chTrend,chExp,chMat;
+  function warYears(){ const ys=new Set(); TX.forEach(t=>{ if(t.date) ys.add(t.date.slice(0,4)); }); const a=[...ys].sort(); if(!a.length) a.push(String(new Date().getFullYear())); return a; }
+  function kpiCard(k,v,color){ return `<div class="card"><div class="k">${k}</div><div class="v" style="color:${color};font-size:20px">${v}</div></div>`; }
+  function renderWar(){
+    if(typeof Chart==='undefined'){ return; }
+    const sel=document.getElementById('warYear');
+    const ys=warYears();
+    if(sel.options.length!==ys.length){ const keep=sel.value; sel.innerHTML=ys.map(y=>`<option>${y}</option>`).join(''); sel.value=ys.includes(keep)?keep:ys[ys.length-1]; }
+    const Y=sel.value||ys[ys.length-1];
+    const inY=TX.filter(t=>t.date&&t.date.slice(0,4)===Y);
+    const labels=['1','2','3','4','5','6','7','8','9','10','11','12'].map(m=>m+'月');
+    const mInc=Array(12).fill(0), mExp=Array(12).fill(0);
+    inY.forEach(t=>{ const m=+t.date.slice(5,7)-1; if(m<0||m>11) return; if(t.type==='income') mInc[m]+=t.amount; else mExp[m]+=t.amount; });
+    const totInc=mInc.reduce((a,b)=>a+b,0), totExp=mExp.reduce((a,b)=>a+b,0), net=totInc-totExp;
+    const monthsN=new Set(inY.map(t=>t.date.slice(0,7))).size||1;
+    document.getElementById('warKpi').innerHTML=
+      kpiCard('今年收入',fmt(totInc),'var(--income)')+kpiCard('今年支出',fmt(totExp),'var(--expense)')+
+      kpiCard('今年結餘',(net<0?'-':'')+fmt(Math.abs(net)),net<0?'var(--expense)':'var(--income)')+
+      kpiCard('平均月支出',fmt(totExp/monthsN),'var(--ink)');
+
+    if(chTrend)chTrend.destroy();
+    chTrend=new Chart(document.getElementById('chartTrend'),{data:{labels,datasets:[
+      {type:'bar',label:'收入',data:mInc,backgroundColor:'#3f7d4f'},
+      {type:'bar',label:'支出',data:mExp,backgroundColor:'#b5504a'},
+      {type:'line',label:'結餘',data:mInc.map((v,i)=>v-mExp[i]),borderColor:'#2b2b29',backgroundColor:'#2b2b29',tension:.3}
+    ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'$'+(v/1000)+'k'}}}}});
+
+    const gTot=GROUPS.map(g=>inY.filter(t=>t.type==='expense'&&CAT2GROUP[t.category]===g).reduce((a,t)=>a+t.amount,0));
+    if(chExp)chExp.destroy();
+    chExp=new Chart(document.getElementById('chartExpense'),{type:'doughnut',data:{labels:GROUPS,datasets:[{data:gTot,backgroundColor:GROUP_COLORS}]},options:{plugins:{legend:{position:'bottom'}}}});
+
+    const mats=['豆製品','豬肉原料','鴨肉原料'], mcol=['#4a6d8c','#b5504a','#c98a3a'];
+    const matData=mats.map(cat=>{ const arr=Array(12).fill(0); inY.filter(t=>t.type==='expense'&&t.category===cat).forEach(t=>{const m=+t.date.slice(5,7)-1; if(m>=0&&m<12)arr[m]+=t.amount;}); return arr; });
+    if(chMat)chMat.destroy();
+    chMat=new Chart(document.getElementById('chartMaterials'),{type:'line',data:{labels,datasets:mats.map((c,i)=>({label:c,data:matData[i],borderColor:mcol[i],backgroundColor:mcol[i],tension:.3}))},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'$'+(v/1000)+'k'}}}}});
+    const matTot=matData.flat().reduce((a,b)=>a+b,0);
+    document.getElementById('warMatPct').textContent='三大原料今年共 '+fmt(matTot)+'，佔總支出 '+(totExp?Math.round(matTot/totExp*100):0)+'%';
+
+    const monthsSet=[...new Set(inY.map(t=>t.date.slice(0,7)))].sort();
+    const thisM=monthsSet[monthsSet.length-1], lastM=monthsSet[monthsSet.length-2];
+    const cmp=document.getElementById('warCompare');
+    if(!thisM){ cmp.innerHTML='<div class="empty">資料不足</div>'; }
+    else{
+      const byM=(mm,g)=>inY.filter(t=>t.type==='expense'&&t.date.slice(0,7)===mm&&CAT2GROUP[t.category]===g).reduce((a,t)=>a+t.amount,0);
+      cmp.innerHTML='<table><thead><tr><th>大類</th><th style="text-align:right">'+(+thisM.slice(5,7))+'月</th>'+(lastM?'<th style="text-align:right">'+(+lastM.slice(5,7))+'月</th><th style="text-align:right">增減</th>':'')+'</tr></thead><tbody>'+
+        GROUPS.map(g=>{ const a=byM(thisM,g), b=lastM?byM(lastM,g):0, d=a-b; const dcol=d>0?'var(--expense)':d<0?'var(--income)':'var(--muted)'; const dtx=lastM?((d>0?'▲':d<0?'▼':'')+fmt(Math.abs(d))):''; return `<tr><td>${g}</td><td class="num">${fmt(a)}</td>`+(lastM?`<td class="num" style="font-weight:400;color:var(--muted)">${fmt(b)}</td><td class="num" style="color:${dcol}">${dtx}</td>`:'')+`</tr>`; }).join('')+'</tbody></table>';
+    }
   }
 
   // ===== 共用資料 =====
@@ -457,8 +523,8 @@
     document.getElementById('month').addEventListener('change', renderDash);
     dashSetType('income'); buildQuick();
     const start=(location.hash||'').replace('#','');
-    sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); showView(['dashboard','quick','scan'].includes(start)?start:'dashboard'); fetchAll(); } else { currentUser=null; showLogin(); } });
-    sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); showView(['dashboard','quick','scan'].includes(start)?start:'dashboard'); fetchAll(); } else showLogin(); });
+    sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); showView(['dashboard','quick','scan','war'].includes(start)?start:'dashboard'); fetchAll(); } else { currentUser=null; showLogin(); } });
+    sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); showView(['dashboard','quick','scan','war'].includes(start)?start:'dashboard'); fetchAll(); } else showLogin(); });
     window.addEventListener('focus',()=>{ if(currentUser) fetchAll(); });
     sb.channel('tx-all').on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{ if(currentUser) fetchAll(); }).subscribe();
   })();
