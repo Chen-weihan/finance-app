@@ -98,6 +98,10 @@
   .items-head{display:grid;grid-template-columns:1.5fr 1fr .85fr .85fr 1.1fr 22px;gap:6px;font-size:11px;color:var(--muted);padding:0 2px 4px}
   .item-row{display:grid;grid-template-columns:1.5fr 1fr .85fr .85fr 1.1fr 22px;gap:6px;margin-bottom:6px;align-items:center}
   .item-row input,.item-row select{padding:8px 6px;font-size:14px}
+  .prod-head,.prod-row{display:grid;grid-template-columns:1.4fr 1fr .7fr .85fr .85fr .75fr 22px;gap:6px;align-items:center;margin-bottom:6px}
+  .prod-head{font-size:11px;color:var(--muted);padding:0 2px 4px;margin-bottom:2px}
+  .prod-row input{padding:8px 6px;font-size:14px}
+  .prod-row .num{text-align:right;font-weight:700;font-size:13px}
   .sumbar{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 4px;font-weight:800;font-size:17px}
   @media(max-width:560px){
     .items-head{grid-template-columns:1.3fr .8fr .8fr .8fr 1fr 20px}
@@ -236,6 +240,16 @@
     <div class="panel"><h2>三大原料成本追蹤</h2><canvas id="chartMaterials" height="170"></canvas><div id="warMatPct" style="margin-top:8px;font-size:13px;color:var(--muted)"></div></div>
   </div>
 
+  <!-- ===== 產品主檔 ===== -->
+  <div id="view-products" style="display:none">
+    <div class="panel">
+      <div class="toolbar"><h2 style="margin:0">產品毛利主檔</h2><button class="btn-ghost" onclick="addProduct()">＋ 新增產品</button></div>
+      <div class="prod-head"><span>產品</span><span>類別</span><span>每包g</span><span>成本</span><span>售價</span><span>毛利率</span><span></span></div>
+      <div id="productList"><div class="empty">載入中…</div></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px">每格可直接改，改完自動存雲端。毛利率 = (售價−成本)÷售價，自動算。</p>
+    </div>
+  </div>
+
 </div>
 
 <nav id="nav">
@@ -243,6 +257,7 @@
   <button data-view="quick" onclick="showView('quick')"><span class="ico">🛒</span><span>採買</span></button>
   <button data-view="scan" onclick="showView('scan')"><span class="ico">📷</span><span>拍照</span></button>
   <button data-view="war" onclick="showView('war')"><span class="ico">🎯</span><span>戰情室</span></button>
+  <button data-view="products" onclick="showView('products')"><span class="ico">🏷️</span><span>產品</span></button>
 </nav>
 </div>
 
@@ -301,12 +316,13 @@
   // ===== 導覽 =====
   function showView(name){
     curView=name;
-    ['dashboard','quick','scan','war'].forEach(v=>document.getElementById('view-'+v).style.display=(v===name)?'block':'none');
+    ['dashboard','quick','scan','war','products'].forEach(v=>document.getElementById('view-'+v).style.display=(v===name)?'block':'none');
     document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.view===name));
     try{ location.hash=name; }catch(_){}
     if(name==='dashboard') renderDash();
     if(name==='quick') renderToday();
     if(name==='war') renderWar();
+    if(name==='products') renderProducts();
     window.scrollTo(0,0);
   }
 
@@ -514,6 +530,41 @@
     showToast('已入帳 '+rows.length+' 筆 ✓'); invoices=[]; renderInvoices(); await fetchAll();
   }
 
+  // ===== 產品主檔 =====
+  let PRODUCTS=[];
+  async function fetchProducts(){
+    const {data,error}=await sb.from('products').select('*').order('category');
+    if(error){ if(curView==='products') document.getElementById('productList').innerHTML='<div class="empty">讀取產品失敗（可能還沒建立 products 資料表）</div>'; console.error(error); return; }
+    PRODUCTS=(data||[]).map(p=>({id:p.id,category:p.category||'',name:p.name||'',pack_g:Number(p.pack_g)||0,cost:Number(p.cost)||0,price:Number(p.price)||0}));
+    if(curView==='products') renderProducts();
+  }
+  function renderProducts(){
+    const el=document.getElementById('productList');
+    if(PRODUCTS.length===0){ el.innerHTML='<div class="empty">還沒有產品。按「＋ 新增產品」建立（需先在 Supabase 建好 products 資料表）。</div>'; return; }
+    el.innerHTML=PRODUCTS.map(p=>{ const m=p.price-p.cost, mr=p.price?Math.round(m/p.price*100):0; return `<div class="prod-row">
+      <input type="text" value="${esc(p.name)}" onchange="updProduct('${p.id}','name',this.value)">
+      <input type="text" value="${esc(p.category)}" onchange="updProduct('${p.id}','category',this.value)">
+      <input type="number" value="${p.pack_g||''}" inputmode="numeric" onchange="updProduct('${p.id}','pack_g',this.value)">
+      <input type="number" value="${p.cost||''}" inputmode="numeric" onchange="updProduct('${p.id}','cost',this.value)">
+      <input type="number" value="${p.price||''}" inputmode="numeric" onchange="updProduct('${p.id}','price',this.value)">
+      <span class="num" style="color:${mr>=0?'var(--income)':'var(--expense)'}">${mr}%</span>
+      <button class="del" onclick="delProduct('${p.id}')">✕</button>
+    </div>`; }).join('');
+  }
+  async function updProduct(id,field,val){
+    const p=PRODUCTS.find(x=>x.id===id); if(!p) return;
+    p[field]=(field==='name'||field==='category')?val:(parseFloat(val)||0);
+    const {error}=await sb.from('products').update({[field]:p[field],updated_at:new Date().toISOString()}).eq('id',id);
+    if(error){ alert('更新失敗：'+error.message); return; }
+    renderProducts(); showToast('已更新 ✓');
+  }
+  async function addProduct(){
+    const rec={id:'P'+uid(),category:'',name:'新產品',pack_g:0,cost:0,price:0,active:true};
+    const {error}=await sb.from('products').insert(rec); if(error){ alert('新增失敗：'+error.message); return; }
+    await fetchProducts(); showToast('已新增一列');
+  }
+  async function delProduct(id){ if(!confirm('確定刪除這個產品？')) return; const {error}=await sb.from('products').delete().eq('id',id); if(error){ alert('刪除失敗：'+error.message); return; } await fetchProducts(); }
+
   // ===== 啟動 =====
   (function init(){
     const now=new Date();
@@ -523,8 +574,8 @@
     document.getElementById('month').addEventListener('change', renderDash);
     dashSetType('income'); buildQuick();
     const start=(location.hash||'').replace('#','');
-    sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); showView(['dashboard','quick','scan','war'].includes(start)?start:'dashboard'); fetchAll(); } else { currentUser=null; showLogin(); } });
-    sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); showView(['dashboard','quick','scan','war'].includes(start)?start:'dashboard'); fetchAll(); } else showLogin(); });
+    sb.auth.onAuthStateChange((e,session)=>{ if(session&&session.user){ showApp(session.user); showView(['dashboard','quick','scan','war','products'].includes(start)?start:'dashboard'); fetchAll(); fetchProducts(); } else { currentUser=null; showLogin(); } });
+    sb.auth.getSession().then(({data})=>{ if(data.session&&data.session.user){ showApp(data.session.user); showView(['dashboard','quick','scan','war','products'].includes(start)?start:'dashboard'); fetchAll(); fetchProducts(); } else showLogin(); });
     window.addEventListener('focus',()=>{ if(currentUser) fetchAll(); });
     sb.channel('tx-all').on('postgres_changes',{event:'*',schema:'public',table:'transactions'},()=>{ if(currentUser) fetchAll(); }).subscribe();
   })();
