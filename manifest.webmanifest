@@ -1,7 +1,7 @@
 {
-  "name": "公司財務記帳",
-  "short_name": "記帳",
-  "description": "滷味 / 鴨肉生意的財務記帳",
+  "name": "包飯店財務長",
+  "short_name": "財務長",
+  "description": "包飯店煙燻滷味 · 財務記帳（總覽 / 採買 / 拍照）",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
